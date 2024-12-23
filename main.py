@@ -31,6 +31,43 @@ def download_extension(version: str, directory: str):
             shutil.copyfileobj(response.raw, f)
 
 
+def setup_chrome_with_extension(
+    extension_path: str, headless=False
+) -> webdriver.Chrome:
+    """
+    Setup Chrome WebDriver with a custom extension
+
+    Args:
+        extension_path (str): Path to the Chrome extension (.crx file or unpacked extension directory)
+        headless (bool): Whether to run Chrome in headless mode
+
+    Returns:
+        webdriver.Chrome: Configured Chrome WebDriver instance
+    """
+    chrome_options = Options()
+
+    # ? https://stackoverflow.com/questions/76818316/selenium-webdriver-doesnt-work-with-metamask
+    if extension_path.endswith(".zip"):
+        chrome_options.add_extension(extension_path)
+    else:
+        chrome_options.add_argument(f"--load-extension={extension_path}")
+
+    if headless:
+        chrome_options.add_argument("--headless=new")  # New headless mode for Chrome
+        chrome_options.add_argument(
+            "--window-size=1920,1080"
+        )  # Set a default window size
+
+    chrome_options.add_argument("--disable-notifications")
+    chrome_options.add_argument("--disable-gpu")  # Required for some systems
+    chrome_options.add_argument("--no-sandbox")  # Required for some Linux systems
+
+    service = Service()
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+
+    return driver
+
+
 def get_extension_id(driver: webdriver.Chrome) -> str:
     """
     Get the ID of the MetaMask extension
@@ -59,53 +96,68 @@ def get_extension_id(driver: webdriver.Chrome) -> str:
     return extension_id
 
 
-def setup_chrome_with_extension(
-    extension_path: str, headless=False
-) -> webdriver.Chrome:
-    """
-    Setup Chrome WebDriver with a custom extension
+def get_extension_url(driver: webdriver.Chrome) -> str:
+    extension_id = get_extension_id(driver)
+    extension_url = f"chrome-extension://{extension_id}/home.html"
+    return extension_url
 
-    Args:
-        extension_path (str): Path to the Chrome extension (.crx file or unpacked extension directory)
-        headless (bool): Whether to run Chrome in headless mode
 
-    Returns:
-        webdriver.Chrome: Configured Chrome WebDriver instance
-    """
-    chrome_options = Options()
-
-    # ? https://stackoverflow.com/questions/76818316/selenium-webdriver-doesnt-work-with-metamask
-    if extension_path.endswith(".zip"):
-        chrome_options.add_extension(extension_path)
-    else:
-        chrome_options.add_argument(f"--load-extension={extension_path}")
-
-    if headless:
-        chrome_options.add_argument("--headless=new")  # New headless mode for Chrome
-        chrome_options.add_argument(
-            "--window-size=1920,1080"
-        )  # Set a default window size
-    else:
-        chrome_options.add_argument("--start-maximized")
-
-    chrome_options.add_argument("--disable-notifications")
-    chrome_options.add_argument("--disable-gpu")  # Required for some systems
-    chrome_options.add_argument("--no-sandbox")  # Required for some Linux systems
-
-    service = Service()
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-
-    return driver
+# def go_to_extension_home(driver: webdriver.Chrome) -> str:
+#     driver.get(extension_url)
 
 
 def click_element(driver: webdriver.Chrome, xpath: str):
     elem = driver.find_element(By.XPATH, xpath)
-    elem.click()
+    if elem:
+        elem.click()
 
 
 def type_text(driver: webdriver.Chrome, xpath: str, text: str):
     elem = driver.find_element(By.XPATH, xpath)
-    elem.send_keys(text)
+    if elem:
+        elem.send_keys(text)
+
+
+def type_onboarding_recovery_phrase(driver: webdriver.Chrome, recovery_phrase: str):
+    """
+    ! JavaScript is inevitable
+    """
+    recovery_words = recovery_phrase.split()
+
+    recovery_script = """
+    const recoveryWords = arguments[0];
+    const recoveryInputs = document
+        .querySelectorAll("input[data-testid^='recovery-phrase-input-']");
+    recoveryWords.forEach((word, index) => {
+        const input = Array
+            .from(recoveryInputs)
+            .find(input => input.dataset.testid.endsWith(`-${index}`)
+        );
+        if (input) {
+            input.setAttribute('value', word);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+    """
+    driver.execute_script(recovery_script, recovery_words)
+
+
+def close_home_onboarding_popup(driver: webdriver.Chrome) -> bool:
+    """
+    ! JavaScript is inevitable
+    """
+    return driver.execute_script(
+        """
+        const onboardingPopup = document
+            .querySelector('.eth-overview__balance')
+            .querySelector('[role="tooltip"]');
+        if (onboardingPopup && onboardingPopup.style.display !== 'none') {
+            onboardingPopup.querySelector('button').click();
+            return true;
+        }
+        return false;
+        """
+    )
 
 
 def create_a_new_wallet(driver: webdriver.Chrome, password: str):
@@ -166,21 +218,7 @@ def create_a_new_wallet(driver: webdriver.Chrome, password: str):
     wait.until(EC.url_contains("confirm-recovery-phrase"))
 
     if "confirm-recovery-phrase" in driver.current_url:
-        recovery_words = recovery_phrase.split()
-
-        # ! JavaScript is inevitable
-        recovery_script = """
-        const recoveryWords = arguments[0];
-        const recoveryInputs = document.querySelectorAll("input[data-testid^='recovery-phrase-input-']");
-        recoveryWords.forEach((word, index) => {
-            const input = Array.from(recoveryInputs).find(input => input.dataset.testid.endsWith(`-${index}`));
-            if (input) {
-                input.setAttribute('value', word);
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        });
-        """
-        driver.execute_script(recovery_script, recovery_words)
+        type_onboarding_recovery_phrase(driver, recovery_phrase)
 
         button_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/div[5]/button"
 
@@ -190,15 +228,32 @@ def create_a_new_wallet(driver: webdriver.Chrome, password: str):
     wait.until(EC.url_contains("completion"))
 
     if "completion" in driver.current_url:
-        button_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/div[3]/button"
-        click_element(driver, button_xpath)
+        try:
+            button_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/div[3]/button"
+            click_element(driver, button_xpath)
 
-        wait.until(EC.url_contains("pin-extension"))
+            wait.until(EC.url_contains("pin-extension"))
 
-        button_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/div[2]/button"
-        click_element(driver, button_xpath)
-        button_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/div[2]/button"
-        click_element(driver, button_xpath)
+            button_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/div[2]/button"
+            click_element(driver, button_xpath)
+            click_element(driver, button_xpath)
+
+            wait.until(EC.url_contains("home"))
+            wait.until(
+                lambda driver: driver.execute_script(
+                    "return document.readyState == 'complete'"
+                )
+            )
+
+            close_home_onboarding_popup(driver)
+
+            extension_id = get_extension_id(driver)
+            extension_url = f"chrome-extension://{extension_id}/home.html"
+            driver.get(extension_url)
+
+        # ? added exception
+        except Exception as e:
+            print(e)
 
 
 def import_an_existing_wallet(driver: webdriver.Chrome):
@@ -206,11 +261,72 @@ def import_an_existing_wallet(driver: webdriver.Chrome):
     click_element(driver, button_xpath)
 
 
-def import_private_key(driver: webdriver.Chrome, private_key: str):
-    pass
+def import_private_key(driver: webdriver.Chrome, private_key: str) -> None:
+    extension_id = get_extension_id(driver)
+    extension_url = f"chrome-extension://{extension_id}/home.html"
+    driver.get(extension_url)
+
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.url_to_be(extension_url))
+
+    try:
+        wait = WebDriverWait(driver, 10)
+        wait.until(EC.url_to_be(extension_url))
+        wait.until(
+            lambda driver: driver.execute_script(
+                "return document.readyState == 'complete'"
+            )
+        )
+
+        print("opening accounts popup")
+        xpath = "//*[@id='app-content']/div/div[2]/div/div[2]/button"
+        parent_elem = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+        parent_elem.click()
+
+        # get the amount of accounts currently in the wallet
+        account_list_popup_xpath = "/html/body/div[3]/div[3]/div/section"
+        popup_elem = wait.until(
+            EC.presence_of_element_located((By.XPATH, account_list_popup_xpath))
+        )
+        # try:
+        #     search_input = popup_elem.find_element(
+        #         By.CSS_SELECTOR, "input[type='search']"
+        #     )
+        #     print("Search input field found")
+        # except Exception as e:
+        #     print("Search input field not found:", e)
+
+        # parent_elem = popup_elem.find_element(By.XPATH, "./div[1]")
+        # print(parent_elem.text)
+        # child_divs = parent_elem.find_elements(By.XPATH, "./div")
+        # accounts_array = [child_div for child_div in child_divs]
+        # accounts = len(accounts_array)
+        # print("Accounts", accounts)
+
+        print("select add account")
+        last_div = popup_elem.find_elements(By.XPATH, "./div")[-1]
+        last_div.find_element(By.XPATH, ".//button").click()
+
+        print("select import account")
+        xpath = "/html/body/div[3]/div[3]/div/section/div/div[2]/button"
+        import_button = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+        import_button.click()
+
+        print("paste private key")
+        xpath = "//*[@id='private-key-box']"
+        input_field = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+        input_field.send_keys(private_key)
+
+        print("select import")
+        xpath = "/html/body/div[3]/div[3]/div/section/div/div/div[2]/button[2]"
+        import_button = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+        import_button.click()
+
+    except Exception as e:
+        print(e)
 
 
-def onboard(driver: webdriver.Chrome):
+def onboard(driver: webdriver.Chrome) -> None:
     extension_id = get_extension_id(driver)
     extension_url = f"chrome-extension://{extension_id}/home.html"
 
@@ -246,6 +362,8 @@ def onboard(driver: webdriver.Chrome):
 
     create_a_new_wallet(driver, password)
 
+    print("Onboarding complete")
+
 
 def main():
     extension_dir = os.path.join(os.getcwd(), "extension")
@@ -264,6 +382,13 @@ def main():
     driver = setup_chrome_with_extension(extension_path)
 
     onboard(driver)
+
+    import_private_key(driver, "your private key here")
+    import_private_key(driver, "your private key here")
+    import_private_key(driver, "your private key here")
+    import_private_key(driver, "your private key here")
+    import_private_key(driver, "your private key here")
+
     input("Press Enter to close the browser...")
 
 
