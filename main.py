@@ -12,6 +12,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
+from prompts import enter_password_text
 from versions import SupportedVersions
 
 
@@ -236,14 +237,10 @@ def onboard(driver: webdriver.Chrome):
 
     print("Onboarding...")
 
-    password = getpass.getpass(
-        "Enter a new password for the MetaMask wallet extension: "
-    )
+    password = getpass.getpass(enter_password_text)
     while len(password) < 8:
-        print("Password must be at least 8 characters long.")
-        password = getpass.getpass(
-            "Enter a new password for the MetaMask wallet extension: "
-        )
+        print("Password must be at least 8 characters long")
+        password = getpass.getpass(enter_password_text)
 
     click_element(driver, "//*[@id='onboarding__terms-checkbox']")
 
