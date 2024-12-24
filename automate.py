@@ -13,7 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from utils.constants.prompts import ENTER_PASSWORD_TEXT
-from utils.enums.versions import SupportedVersions
+from utils.enums.metamask_extension import SupportedVersions
 
 
 def download_extension(version: str, directory: str):
@@ -367,17 +367,13 @@ def onboard(driver: webdriver.Chrome) -> None:
 
 def main():
     extension_dir = os.path.join(os.getcwd(), "extension")
-    extension_path = os.path.join(
-        extension_dir, f"{SupportedVersions.LATEST_VERSION}.zip"
-    )
+    extension_path = os.path.join(extension_dir, f"{SupportedVersions.LATEST}.zip")
 
     if not os.path.exists(extension_path):
         print("Downloading MetaMask extension...")
-        download_extension(SupportedVersions.LATEST_VERSION, extension_dir)
+        download_extension(SupportedVersions.LATEST, extension_dir)
 
-    extension_path = os.path.abspath(
-        f"extension/{SupportedVersions.LATEST_VERSION}.zip"
-    )
+    extension_path = os.path.abspath(f"extension/{SupportedVersions.LATEST}.zip")
 
     driver = setup_chrome_with_extension(extension_path)
 
