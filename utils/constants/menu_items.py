@@ -1,0 +1,6 @@
+CREATE_A_NEW_WALLET_MENU_ITEM = "1. Create a new wallet"
+IMPORT_AN_EXISTING_WALLET_MENU_ITEM = "2. Import an existing wallet"
+LIST_ACCOUNTS_IN_WALLET_MENU_ITEM = "3. List accounts in wallet"
+IMPORT_AN_ACCOUNT_MENU_ITEM = "4. Import an account with a private key"
+IMPORT_MULTIPLE_ACCOUNTS_MENU_ITEM = "5. Import multiple accounts with private keys"
+QUIT_MENU_ITEM = "6. Quit"

@@ -12,8 +12,8 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from prompts import enter_password_text
-from versions import SupportedVersions
+from utils.constants.prompts import ENTER_PASSWORD_TEXT
+from utils.enums.versions import SupportedVersions
 
 
 def download_extension(version: str, directory: str):
@@ -55,7 +55,7 @@ def setup_chrome_with_extension(
     if headless:
         chrome_options.add_argument("--headless=new")  # New headless mode for Chrome
         chrome_options.add_argument(
-            "--window-size=1920,1080"
+            "--window-size=1024,716"
         )  # Set a default window size
 
     chrome_options.add_argument("--disable-notifications")
@@ -353,10 +353,10 @@ def onboard(driver: webdriver.Chrome) -> None:
 
     print("Onboarding...")
 
-    password = getpass.getpass(enter_password_text)
+    password = getpass.getpass(ENTER_PASSWORD_TEXT)
     while len(password) < 8:
         print("Password must be at least 8 characters long")
-        password = getpass.getpass(enter_password_text)
+        password = getpass.getpass(ENTER_PASSWORD_TEXT)
 
     click_element(driver, "//*[@id='onboarding__terms-checkbox']")
 
