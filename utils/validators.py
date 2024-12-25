@@ -15,10 +15,6 @@ def is_valid(text: str) -> bool:
     return not is_empty(text) and is_lengthy(text)
 
 
-def match(text: str, text_to_confirm: str) -> bool:
-    return text.strip() == text_to_confirm.strip()
-
-
 def validate_password_input(text: str, prompt: str) -> str:
     while not is_valid(text):
         if is_empty(text):

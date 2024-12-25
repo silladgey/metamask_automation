@@ -1,5 +1,7 @@
 import getpass
 
+from secrets import compare_digest
+
 from utils.constants.menu_items import (
     CREATE_A_NEW_WALLET_MENU_ITEM,
     IMPORT_AN_ACCOUNT_MENU_ITEM,
@@ -14,7 +16,7 @@ from utils.constants.prompts import (
     ENTER_PASSWORD_TEXT,
     NOT_PASSWORD_CONFIRMED_TEXT,
 )
-from utils.validators import validate_password_input, is_valid, match
+from utils.validators import validate_password_input, is_valid
 
 
 def menu():
@@ -38,7 +40,7 @@ def confirm_password(password: str) -> bool:
 
     confirm = getpass.getpass(CONFIRM_PASSWORD_TEXT)
     confirm = validate_password_input(confirm, CONFIRM_PASSWORD_TEXT)
-    return match(password, confirm)
+    return compare_digest(password, confirm)
 
 
 if __name__ == "__main__":
