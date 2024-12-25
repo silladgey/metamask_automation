@@ -7,6 +7,8 @@ name = "pypi"
 selenium = "*"
 pyperclip = "*"
 requests = "*"
+redis = "*"
+bcrypt = "*"
 
 [dev-packages]
 
