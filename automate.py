@@ -194,6 +194,15 @@ def type_network_details(driver: webdriver.Chrome, network: dict) -> None:
     driver.execute_script(add_network_script, network)
 
 
+def get_open_tabs(driver: webdriver.Chrome) -> list:
+    return driver.window_handles
+
+
+def close_tab(driver: webdriver.Chrome, tab_index: int) -> None:
+    driver.switch_to.window(driver.window_handles[tab_index])
+    driver.close()
+
+
 def create_a_new_wallet(driver: webdriver.Chrome, password: str):
     wait = WebDriverWait(driver, timeout=10)
 
