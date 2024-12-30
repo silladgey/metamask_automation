@@ -9,6 +9,8 @@ pyperclip = "*"
 requests = "*"
 redis = "*"
 bcrypt = "*"
+cryptography = "*"
+web3 = "*"
 
 [dev-packages]
 

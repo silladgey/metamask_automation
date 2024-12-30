@@ -1,6 +1,6 @@
 import getpass
 
-from utils.constants.prompts import PASSWORD_IS_EMPTY_TEXT, PASSWORD_NOT_IS_EMPTY_TEXT
+from utils.constants.strings import PASSWORD_IS_EMPTY_TEXT, PASSWORD_NOT_IS_EMPTY_TEXT
 
 
 def is_empty(text: str) -> bool:

@@ -1,9 +1,5 @@
-import getpass
 import os
-import shutil
-
 import pyperclip
-import requests
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -12,44 +8,40 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from utils.constants.prompts import ENTER_PASSWORD_TEXT
+from utils.constants.prompts import CONFIRM_PASSWORD_TEXT
 from utils.enums.metamask_extension import SupportedVersions
+from utils.inputs import get_password
+
+from credentials import SecureCredentialStorage
+from setup import download_metamask_zip
 
 
-def download_extension(version: str, directory: str):
-    """
-    Download the MetaMask extension for a specific version
-
-    Args:
-        version (str): Version of the MetaMask extension to download
-    """
-    url = f"https://github.com/MetaMask/metamask-extension/releases/download/v{version}/metamask-chrome-{version}.zip"
-
-    with requests.get(url, stream=True) as response:
-        response.raise_for_status()
-        with open(f"{directory}/{version}.zip", "wb") as f:
-            shutil.copyfileobj(response.raw, f)
-
-
-def setup_chrome_with_extension(
-    extension_path: str, headless=False
-) -> webdriver.Chrome:
+def setup_chrome_with_extension(headless=False) -> webdriver.Chrome:
     """
     Setup Chrome WebDriver with a custom extension
 
     Args:
-        extension_path (str): Path to the Chrome extension (.crx file or unpacked extension directory)
         headless (bool): Whether to run Chrome in headless mode
 
     Returns:
         webdriver.Chrome: Configured Chrome WebDriver instance
     """
-    chrome_options = Options()
+    download_metamask_zip(SupportedVersions.LATEST)
 
-    # ? https://stackoverflow.com/questions/76818316/selenium-webdriver-doesnt-work-with-metamask
-    if extension_path.endswith(".zip"):
+    chrome_options = Options()
+    extension_path = os.path.abspath(f"extension/{SupportedVersions.LATEST}.crx")
+
+    if not os.path.exists(extension_path):
+        extension_path = os.path.abspath(f"extension/{SupportedVersions.LATEST}.zip")
+
+    if not os.path.exists(extension_path):
+        raise FileNotFoundError(
+            f"MetaMask extension not found at location {extension_path}"
+        )
+
+    if extension_path.endswith((".crx", ".zip")):  # Load extension from a file
         chrome_options.add_extension(extension_path)
-    else:
+    else:  # Load extension from a directory
         chrome_options.add_argument(f"--load-extension={extension_path}")
 
     if headless:
@@ -394,16 +386,20 @@ def onboard(driver: webdriver.Chrome) -> None:
 
     print("Onboarding...")
 
-    password = getpass.getpass(ENTER_PASSWORD_TEXT)
-    while len(password) < 8:
-        print("Password must be at least 8 characters long")
-        password = getpass.getpass(ENTER_PASSWORD_TEXT)
+    storage = SecureCredentialStorage()
 
-    click_element(driver, "//*[@id='onboarding__terms-checkbox']")
+    password = get_password(CONFIRM_PASSWORD_TEXT)
+    verified = storage.verify_credential("metamask", "password_hash", password)
 
-    create_a_new_wallet(driver, password)
+    if verified:
+        click_element(driver, "//*[@id='onboarding__terms-checkbox']")
+        create_a_new_wallet(driver, password)
 
-    print("Onboarding complete")
+        print("Onboarding complete")
+        return driver
+    else:
+        print("Onboarding failed")
+        return None
 
 
 def add_custom_network(driver: webdriver.Chrome, network: dict) -> None:
@@ -453,8 +449,6 @@ def add_custom_network(driver: webdriver.Chrome, network: dict) -> None:
     add_rpc_button.click()
 
     rpc_url_input = wait.until(EC.presence_of_element_located((By.ID, "rpcUrl")))
-
-    print(rpc_url_input)
 
     rpc_url_input.send_keys(network["rpc_url"])
 
@@ -539,24 +533,8 @@ def switch_to_network(driver: webdriver.Chrome, network_name: str) -> None:
 
 
 def main():
-    extension_dir = os.path.join(os.getcwd(), "extension")
-    extension_path = os.path.join(extension_dir, f"{SupportedVersions.LATEST}.zip")
-
-    if not os.path.exists(extension_path):
-        print("Downloading MetaMask extension...")
-        download_extension(SupportedVersions.LATEST, extension_dir)
-
-    extension_path = os.path.abspath(f"extension/{SupportedVersions.LATEST}.zip")
-
-    driver = setup_chrome_with_extension(extension_path)
-
+    driver = setup_chrome_with_extension()
     onboard(driver)
-
-    import_private_key(driver, "your private key here")
-    import_private_key(driver, "your private key here")
-    import_private_key(driver, "your private key here")
-    import_private_key(driver, "your private key here")
-    import_private_key(driver, "your private key here")
 
     zetachain_network = {
         "name": "ZetaChain Mainnet",
