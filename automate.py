@@ -160,6 +160,40 @@ def close_home_onboarding_popup(driver: webdriver.Chrome) -> bool:
     )
 
 
+def type_network_details(driver: webdriver.Chrome, network: dict) -> None:
+    """
+    ! JavaScript is inevitable
+    """
+
+    add_network_script = """
+        const network = arguments[0];
+        
+        const popup = document.querySelector("section[role='dialog']");
+        const inputs = Array.from(popup.querySelectorAll("input[type='text'][id]"));
+
+        const networkNameInput = popup.querySelector("#networkName");
+        const networkChainIdInput = popup.querySelector("#chainId");
+        const networkCurrencySymbolInput = popup.querySelector("#nativeCurrency");
+        
+        if (networkNameInput) {
+            networkNameInput.setAttribute("value", network.name);
+            networkNameInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+            
+        if (networkChainIdInput) {
+            networkChainIdInput.setAttribute("value", network.chain_id);
+            networkChainIdInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+            
+        if (networkCurrencySymbolInput) {
+            networkCurrencySymbolInput.setAttribute("value", network.currency_symbol);
+            networkCurrencySymbolInput.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+    """
+
+    driver.execute_script(add_network_script, network)
+
+
 def create_a_new_wallet(driver: webdriver.Chrome, password: str):
     wait = WebDriverWait(driver, timeout=10)
 
@@ -283,10 +317,8 @@ def import_private_key(driver: webdriver.Chrome, private_key: str) -> None:
         parent_elem = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
         parent_elem.click()
 
-        # get the amount of accounts currently in the wallet
-        account_list_popup_xpath = "/html/body/div[3]/div[3]/div/section"
         popup_elem = wait.until(
-            EC.presence_of_element_located((By.XPATH, account_list_popup_xpath))
+            EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
         )
         # try:
         #     search_input = popup_elem.find_element(
@@ -365,6 +397,109 @@ def onboard(driver: webdriver.Chrome) -> None:
     print("Onboarding complete")
 
 
+def add_custom_network(driver: webdriver.Chrome, network: dict) -> None:
+    extension_id = get_extension_id(driver)
+    extension_url = f"chrome-extension://{extension_id}/home.html"
+    driver.get(extension_url)
+
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.url_to_be(extension_url))
+
+    xpath = "//*[@id='app-content']/div/div[2]/div/div[1]/button"
+    trigger_button = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+    trigger_button.click()
+
+    popup_dialog = wait.until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
+    )
+
+    print("select add custom network")
+    last_div = popup_dialog.find_elements(By.XPATH, "./div")[-1]
+    last_div.find_element(By.XPATH, ".//button").click()
+
+    try:
+        type_network_details(driver, network)
+    except Exception as e:
+        print(e)
+
+    # add RPC url
+    trigger_button = wait.until(
+        EC.presence_of_element_located(
+            (
+                By.XPATH,
+                "/html/body/div[3]/div[3]/div/section/div/div[1]/div[2]/div/button",
+            )
+        )
+    )
+    trigger_button.click()
+
+    add_rpc_button = wait.until(
+        EC.presence_of_element_located(
+            (
+                By.XPATH,
+                "/html/body/div[3]/div[3]/div/section/div/div[1]/div[2]/div[2]/div/div/button",
+            )
+        )
+    )
+    add_rpc_button.click()
+
+    rpc_url_input = wait.until(EC.presence_of_element_located((By.ID, "rpcUrl")))
+
+    print(rpc_url_input)
+
+    rpc_url_input.send_keys(network["rpc_url"])
+
+    complete_action_button = wait.until(
+        EC.presence_of_element_located(
+            (
+                By.XPATH,
+                "/html/body/div[3]/div[3]/div/section/div/div[2]/button",
+            )
+        )
+    )
+    complete_action_button.click()
+
+    if network["block_explorer_url"]:
+        trigger_xpath = (
+            "/html/body/div[3]/div[3]/div/section/div/div[1]/div[5]/div[1]/button"
+        )
+        trigger_button = wait.until(
+            EC.presence_of_element_located(
+                (
+                    By.XPATH,
+                    trigger_xpath,
+                )
+            )
+        )
+        trigger_button.click()
+
+        add_block_explorer_xpath = "/html/body/div[3]/div[3]/div/section/div/div[1]/div[5]/div[2]/div/div/button"
+        add_block_explorer_url = wait.until(
+            EC.presence_of_element_located((By.XPATH, add_block_explorer_xpath))
+        )
+        add_block_explorer_url.click()
+
+        block_explorer_input = wait.until(
+            EC.presence_of_element_located((By.ID, "additional-rpc-url"))
+        )
+
+        block_explorer_input.send_keys(network["block_explorer_url"])
+
+        complete_action_button = wait.until(
+            EC.presence_of_element_located(
+                (
+                    By.XPATH,
+                    "/html/body/div[3]/div[3]/div/section/div/div[2]/button",
+                )
+            )
+        )
+        complete_action_button.click()
+
+    save_xpath = "/html/body/div[3]/div[3]/div/section/div/div[2]/button"
+    save_button = wait.until(EC.presence_of_element_located((By.XPATH, save_xpath)))
+    save_button.click()
+
+
 def main():
     extension_dir = os.path.join(os.getcwd(), "extension")
     extension_path = os.path.join(extension_dir, f"{SupportedVersions.LATEST}.zip")
@@ -384,6 +519,14 @@ def main():
     import_private_key(driver, "your private key here")
     import_private_key(driver, "your private key here")
     import_private_key(driver, "your private key here")
+
+    zetachain_network = {
+        "name": "ZetaChain Mainnet",
+        "rpc_url": "https://zetachain-mainnet.public.blastapi.io/",
+        "chain_id": 7000,
+        "currency_symbol": "ZETA",
+        "block_explorer_url": "https://explorer.zetachain.com",
+    }
 
     input("Press Enter to close the browser...")
 
