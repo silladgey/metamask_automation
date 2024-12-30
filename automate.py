@@ -509,6 +509,35 @@ def add_custom_network(driver: webdriver.Chrome, network: dict) -> None:
     save_button.click()
 
 
+def switch_to_network(driver: webdriver.Chrome, network_name: str) -> None:
+    extension_id = get_extension_id(driver)
+    extension_url = f"chrome-extension://{extension_id}/home.html"
+    driver.get(extension_url)
+
+    wait = WebDriverWait(driver, 100)
+    wait.until(EC.url_to_be(extension_url))
+
+    xpath = "//*[@id='app-content']/div/div[2]/div/div[1]/button"
+    trigger_button = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+    trigger_button.click()
+
+    wait.until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
+    )
+
+    print("select a network")
+    network_list_xpath = "/html/body/div[3]/div[3]/div/section/div[1]/div[3]/div[2]"
+    network_list_wrapper = wait.until(
+        EC.presence_of_element_located((By.XPATH, network_list_xpath))
+    )
+    network_list = network_list_wrapper.find_elements(By.XPATH, ".//p")
+    for network in network_list:
+        if network.text == network_name:
+            network.click()
+            break
+        print(network.text)
+
+
 def main():
     extension_dir = os.path.join(os.getcwd(), "extension")
     extension_path = os.path.join(extension_dir, f"{SupportedVersions.LATEST}.zip")
@@ -536,6 +565,9 @@ def main():
         "currency_symbol": "ZETA",
         "block_explorer_url": "https://explorer.zetachain.com",
     }
+
+    add_custom_network(driver, zetachain_network)
+    switch_to_network(driver, zetachain_network["name"])
 
     input("Press Enter to close the browser...")
 
