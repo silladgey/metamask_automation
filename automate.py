@@ -111,77 +111,23 @@ def type_text(driver: webdriver.Chrome, xpath: str, text: str):
 
 
 def type_onboarding_recovery_phrase(driver: webdriver.Chrome, recovery_phrase: str):
-    """
-    ! JavaScript is inevitable
-    """
     recovery_words = recovery_phrase.split()
 
-    recovery_script = """
-    const recoveryWords = arguments[0];
-    const recoveryInputs = document
-        .querySelectorAll("input[data-testid^='recovery-phrase-input-']");
-    recoveryWords.forEach((word, index) => {
-        const input = Array
-            .from(recoveryInputs)
-            .find(input => input.dataset.testid.endsWith(`-${index}`)
-        );
-        if (input) {
-            input.setAttribute('value', word);
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-    });
-    """
+    with open("scripts/type-recovery-phrase-words.js", "r", encoding="utf-8") as file:
+        recovery_script = file.read()
     driver.execute_script(recovery_script, recovery_words)
 
 
-def close_home_onboarding_popup(driver: webdriver.Chrome) -> bool:
-    """
-    ! JavaScript is inevitable
-    """
-    return driver.execute_script(
-        """
-        const onboardingPopup = document
-            .querySelector('.eth-overview__balance')
-            .querySelector('[role="tooltip"]');
-        if (onboardingPopup && onboardingPopup.style.display !== 'none') {
-            onboardingPopup.querySelector('button').click();
-            return true;
-        }
-        return false;
-        """
-    )
+def close_tooltip(driver: webdriver.Chrome) -> bool:
+    with open("scripts/close-tooltip.js", "r", encoding="utf-8") as file:
+        close_tooltip_script = file.read()
+    return driver.execute_script(close_tooltip_script)
 
 
 def type_network_details(driver: webdriver.Chrome, network: dict) -> None:
-    """
-    ! JavaScript is inevitable
-    """
 
-    add_network_script = """
-        const network = arguments[0];
-        
-        const popup = document.querySelector("section[role='dialog']");
-        const inputs = Array.from(popup.querySelectorAll("input[type='text'][id]"));
-
-        const networkNameInput = popup.querySelector("#networkName");
-        const networkChainIdInput = popup.querySelector("#chainId");
-        const networkCurrencySymbolInput = popup.querySelector("#nativeCurrency");
-        
-        if (networkNameInput) {
-            networkNameInput.setAttribute("value", network.name);
-            networkNameInput.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-            
-        if (networkChainIdInput) {
-            networkChainIdInput.setAttribute("value", network.chain_id);
-            networkChainIdInput.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-            
-        if (networkCurrencySymbolInput) {
-            networkCurrencySymbolInput.setAttribute("value", network.currency_symbol);
-            networkCurrencySymbolInput.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-    """
+    with open("scripts/type-network-details.js", "r", encoding="utf-8") as file:
+        add_network_script = file.read()
 
     driver.execute_script(add_network_script, network)
 
@@ -280,7 +226,7 @@ def create_a_new_wallet(driver: webdriver.Chrome, password: str):
                 )
             )
 
-            close_home_onboarding_popup(driver)
+            close_tooltip(driver)
 
             extension_id = get_extension_id(driver)
             extension_url = f"chrome-extension://{extension_id}/home.html"
