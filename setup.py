@@ -221,8 +221,7 @@ def get_extension_id(driver: webdriver, extension_name: str) -> str:
     )
 
     for item in extensions_items:
-        item_shadow_root = item.shadow_root
-        ext_name = item_shadow_root.find_element(By.ID, "name")
+        ext_name = item.shadow_root.find_element(By.ID, "name")
 
         if extension_name in ext_name.text:
             extension_id = item.get_attribute("id")
@@ -239,7 +238,10 @@ if __name__ == "__main__":
     service = Service()
 
     driver = setup_chrome_driver_for_metamask(
-        options=options, service=service, headless=False
+        options=options,
+        service=service,
+        metamask_version=SupportedVersion.LATEST,
+        headless=False,
     )
 
     metamask_extension_id = get_extension_id(driver, "MetaMask")
