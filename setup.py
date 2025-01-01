@@ -12,6 +12,8 @@ from selenium.webdriver.remote.webelement import WebElement
 from utils.enums.developer_mode import DevModeState
 from utils.enums.metamask_extension import SupportedVersion
 
+from storage.extension import ExtensionStorage
+
 EXTENSION_DIR = os.path.join(os.getcwd(), "extension")
 
 
@@ -207,7 +209,7 @@ def run_script(driver: webdriver, file_name: str, args: dict) -> any:
     return result
 
 
-def get_extension_id(driver: webdriver, extension_name: str) -> str:
+def get_extension_id(driver: webdriver, storage, extension_name: str) -> str:
     """
     Finds the MetaMask extension ID in the browser using a Selenium WebDriver.
     Args:
@@ -247,6 +249,9 @@ def get_extension_id(driver: webdriver, extension_name: str) -> str:
 
         if extension_name in ext_name.text:
             extension_id = item.get_attribute("id")
+            storage.store_extension(
+                extension_name.lower(), {"extension_id": extension_id}
+            )
             return extension_id
 
     raise Exception("Extension not found")
@@ -258,6 +263,7 @@ if __name__ == "__main__":
 
     options = Options()
     service = Service()
+    storage = ExtensionStorage()
 
     driver = setup_chrome_driver_for_metamask(
         options=options,
@@ -266,7 +272,7 @@ if __name__ == "__main__":
         headless=False,
     )
 
-    metamask_extension_id = get_extension_id(driver, "MetaMask")
+    metamask_extension_id = get_extension_id(driver, storage, "MetaMask")
     print(f"MetaMask extension ID: {metamask_extension_id}")
 
     driver.quit()
