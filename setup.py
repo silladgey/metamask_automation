@@ -185,6 +185,28 @@ def toggle_developer_mode(locator: WebElement, to: DevModeState) -> bool:
         raise ValueError(f"Invalid developer mode state: {to}")
 
 
+def run_script(driver: webdriver, file_name: str, args: dict) -> any:
+    """
+    Run a JavaScript script in the browser using a Selenium WebDriver.
+
+    Args:
+        driver (webdriver): The Selenium WebDriver instance controlling the browser.
+        path (str): The path to the JavaScript file to run.
+        args (dict): The arguments to pass to the script.
+    Returns:
+        any: The result of the script execution.
+    """
+    with open(
+        os.path.join(os.getcwd(), "scripts", file_name), "r", encoding="utf-8"
+    ) as f:
+        script = f.read()
+    if args:
+        result = driver.execute_script(script, *args.values())
+    else:
+        result = driver.execute_script(script)
+    return result
+
+
 def get_extension_id(driver: webdriver, extension_name: str) -> str:
     """
     Finds the MetaMask extension ID in the browser using a Selenium WebDriver.
