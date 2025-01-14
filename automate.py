@@ -137,7 +137,7 @@ def create_a_new_wallet(driver: webdriver.Chrome, password: str):
                 )
             )
 
-            run_script(driver, "button-tooltip-close.js", args={})
+            run_script(driver, "button-tooltip-close.js")
 
             extension_url = get_extension_home_url()
             driver.get(extension_url)

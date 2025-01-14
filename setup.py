@@ -189,7 +189,7 @@ def toggle_developer_mode(locator: WebElement, to: DevModeState) -> bool:
         raise ValueError(f"Invalid developer mode state: {to}")
 
 
-def run_script(driver: webdriver, file_name: str, args: dict) -> any:
+def run_script(driver: webdriver, file_name: str, args: dict = None) -> any:
     """
     Run a JavaScript script in the browser using a Selenium WebDriver.
 
