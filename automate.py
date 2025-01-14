@@ -1,5 +1,3 @@
-import pyperclip
-
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -89,11 +87,16 @@ def create_a_new_wallet(driver: webdriver.Chrome, password: str):
     wait.until(EC.url_contains("review-recovery-phrase"))
 
     if "review-recovery-phrase" in driver.current_url:
+        import pyperclip
+
         xpath = "//*[@id='app-content']/div/div[2]/div/div/div/div[6]/button"
         click_element(driver, xpath)
 
         xpath = "//*[@id='app-content']/div/div[2]/div/div/div/div[6]/div/div/a[2]"
         click_element(driver, xpath)
+
+        if not pyperclip.is_available():
+            print("Copy functionality unavailable!")
 
         recovery_phrase = pyperclip.paste()
         print(f"Recovery Phrase: {recovery_phrase}")
