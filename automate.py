@@ -6,6 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from utils.constants.prompts import CONFIRM_PASSWORD_TEXT
+from utils.constants.values import DEFAULT_TIMEOUT
 from utils.enums.metamask_extension import SupportedVersion
 from utils.inputs import get_password
 
@@ -13,8 +14,6 @@ from storage.extension import ExtensionStorage
 
 from credentials import SecureCredentialStorage
 from setup import run_script, setup_chrome_driver_for_metamask
-
-DEFAULT_TIMEOUT = 100
 
 
 def get_extension_home_url() -> str:
