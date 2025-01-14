@@ -1,3 +1,4 @@
+import sys
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 
@@ -31,6 +32,7 @@ def menu():
 
 
 if __name__ == "__main__":
+    driver = None
     choice = menu()
 
     old_storage = SecureCredentialStorage()
@@ -73,8 +75,10 @@ if __name__ == "__main__":
         pass
 
     elif choice == "6":
-        exit(0)
+        driver and driver.quit()
+        sys.exit(0)
 
     else:
         print("Invalid choice")
-        exit(1)
+        driver and driver.quit()
+        sys.exit(1)
