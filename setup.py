@@ -136,6 +136,8 @@ def setup_chrome_driver_for_metamask(
     chrome_options.add_argument("--no-sandbox")  # ? Required for some Linux systems
 
     driver = webdriver.Chrome(service=service, options=chrome_options)
+    store_extension_id(driver, ExtensionStorage(), "MetaMask")
+
     return driver
 
 
@@ -209,7 +211,7 @@ def run_script(driver: webdriver, file_name: str, args: dict) -> any:
     return result
 
 
-def get_extension_id(driver: webdriver, storage, extension_name: str) -> str:
+def store_extension_id(driver: webdriver, storage, extension_name: str) -> str:
     """
     Finds the MetaMask extension ID in the browser using a Selenium WebDriver.
     Args:
@@ -272,7 +274,7 @@ if __name__ == "__main__":
         headless=False,
     )
 
-    metamask_extension_id = get_extension_id(driver, storage, "MetaMask")
+    metamask_extension_id = storage.get_extension_id("metamask")
     print(f"MetaMask extension ID: {metamask_extension_id}")
 
     driver.quit()

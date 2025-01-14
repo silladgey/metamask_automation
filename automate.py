@@ -1,4 +1,3 @@
-import os
 import pyperclip
 
 from selenium import webdriver
@@ -9,93 +8,22 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from utils.constants.prompts import CONFIRM_PASSWORD_TEXT
-from utils.enums.metamask_extension import SupportedVersions
+from utils.enums.metamask_extension import SupportedVersion
 from utils.inputs import get_password
 
+from storage.extension import ExtensionStorage
+
 from credentials import SecureCredentialStorage
-from setup import download_metamask_zip
+from setup import run_script, setup_chrome_driver_for_metamask
+
+DEFAULT_TIMEOUT = 100
 
 
-def setup_chrome_with_extension(headless=False) -> webdriver.Chrome:
-    """
-    Setup Chrome WebDriver with a custom extension
+def get_extension_home_url() -> str:
+    storage = ExtensionStorage()
 
-    Args:
-        headless (bool): Whether to run Chrome in headless mode
-
-    Returns:
-        webdriver.Chrome: Configured Chrome WebDriver instance
-    """
-    download_metamask_zip(SupportedVersions.LATEST)
-
-    chrome_options = Options()
-    extension_path = os.path.abspath(f"extension/{SupportedVersions.LATEST}.crx")
-
-    if not os.path.exists(extension_path):
-        extension_path = os.path.abspath(f"extension/{SupportedVersions.LATEST}.zip")
-
-    if not os.path.exists(extension_path):
-        raise FileNotFoundError(
-            f"MetaMask extension not found at location {extension_path}"
-        )
-
-    if extension_path.endswith((".crx", ".zip")):  # Load extension from a file
-        chrome_options.add_extension(extension_path)
-    else:  # Load extension from a directory
-        chrome_options.add_argument(f"--load-extension={extension_path}")
-
-    if headless:
-        chrome_options.add_argument("--headless=new")  # New headless mode for Chrome
-        chrome_options.add_argument(
-            "--window-size=1024,716"
-        )  # Set a default window size
-
-    chrome_options.add_argument("--disable-notifications")
-    chrome_options.add_argument("--disable-gpu")  # Required for some systems
-    chrome_options.add_argument("--no-sandbox")  # Required for some Linux systems
-
-    service = Service()
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-
-    return driver
-
-
-def get_extension_id(driver: webdriver.Chrome) -> str:
-    """
-    Get the ID of the MetaMask extension
-
-    Args:
-        driver (webdriver.Chrome): Chrome WebDriver instance
-
-    Returns:
-        str: ID of the MetaMask extension
-    """
-    driver.get("chrome://extensions")
-
-    extensions_manager = driver.find_element(
-        By.TAG_NAME, "extensions-manager"
-    ).shadow_root
-
-    extensions_item_list = extensions_manager.find_element(
-        By.CSS_SELECTOR, "extensions-item-list"
-    )
-
-    extensions_item = extensions_item_list.shadow_root.find_element(
-        By.CSS_SELECTOR, "extensions-item"
-    )
-
-    extension_id = extensions_item.get_attribute("id")
-    return extension_id
-
-
-def get_extension_url(driver: webdriver.Chrome) -> str:
-    extension_id = get_extension_id(driver)
-    extension_url = f"chrome-extension://{extension_id}/home.html"
-    return extension_url
-
-
-# def go_to_extension_home(driver: webdriver.Chrome) -> str:
-#     driver.get(extension_url)
+    extension_url = storage.get_extension_base_url("metamask")
+    return extension_url + "/home.html"
 
 
 def click_element(driver: webdriver.Chrome, xpath: str):
@@ -104,45 +32,19 @@ def click_element(driver: webdriver.Chrome, xpath: str):
         elem.click()
 
 
-def type_text(driver: webdriver.Chrome, xpath: str, text: str):
-    elem = driver.find_element(By.XPATH, xpath)
-    if elem:
-        elem.send_keys(text)
-
-
-def type_onboarding_recovery_phrase(driver: webdriver.Chrome, recovery_phrase: str):
-    recovery_words = recovery_phrase.split()
-
-    with open("scripts/type-recovery-phrase-words.js", "r", encoding="utf-8") as file:
-        recovery_script = file.read()
-    driver.execute_script(recovery_script, recovery_words)
-
-
-def close_tooltip(driver: webdriver.Chrome) -> bool:
-    with open("scripts/close-tooltip.js", "r", encoding="utf-8") as file:
-        close_tooltip_script = file.read()
-    return driver.execute_script(close_tooltip_script)
-
-
-def type_network_details(driver: webdriver.Chrome, network: dict) -> None:
-
-    with open("scripts/type-network-details.js", "r", encoding="utf-8") as file:
-        add_network_script = file.read()
-
-    driver.execute_script(add_network_script, network)
-
-
+# * SELENIUM HELPER FUNCTION
 def get_open_tabs(driver: webdriver.Chrome) -> list:
     return driver.window_handles
 
 
+# * SELENIUM HELPER FUNTION
 def close_tab(driver: webdriver.Chrome, tab_index: int) -> None:
     driver.switch_to.window(driver.window_handles[tab_index])
     driver.close()
 
 
 def create_a_new_wallet(driver: webdriver.Chrome, password: str):
-    wait = WebDriverWait(driver, timeout=10)
+    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
 
     button_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/ul/li[2]/button"
     click_element(driver, button_xpath)
@@ -157,10 +59,14 @@ def create_a_new_wallet(driver: webdriver.Chrome, password: str):
 
     if "create-password" in driver.current_url:
         password_input_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/div[2]/form/div[1]/label/input"
-        type_text(driver, password_input_xpath, password)
+        input_elem = driver.find_element(By.XPATH, password_input_xpath)
+        if input_elem:
+            input_elem.send_keys(password)
 
         confirm_password_input_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/div[2]/form/div[2]/label/input"
-        type_text(driver, confirm_password_input_xpath, password)
+        input_elem = driver.find_element(By.XPATH, confirm_password_input_xpath)
+        if input_elem:
+            input_elem.send_keys(password)
 
         click_element(
             driver,
@@ -199,7 +105,10 @@ def create_a_new_wallet(driver: webdriver.Chrome, password: str):
     wait.until(EC.url_contains("confirm-recovery-phrase"))
 
     if "confirm-recovery-phrase" in driver.current_url:
-        type_onboarding_recovery_phrase(driver, recovery_phrase)
+        recovery_words = recovery_phrase.split()
+        run_script(
+            driver, "input-recovery-phrase.js", args={"recovery_words": recovery_words}
+        )
 
         button_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/div[5]/button"
 
@@ -226,10 +135,9 @@ def create_a_new_wallet(driver: webdriver.Chrome, password: str):
                 )
             )
 
-            close_tooltip(driver)
+            run_script(driver, "button-tooltip-close.js", args={})
 
-            extension_id = get_extension_id(driver)
-            extension_url = f"chrome-extension://{extension_id}/home.html"
+            extension_url = get_extension_home_url()
             driver.get(extension_url)
 
         # ? added exception
@@ -242,16 +150,21 @@ def import_an_existing_wallet(driver: webdriver.Chrome):
     click_element(driver, button_xpath)
 
 
-def import_private_key(driver: webdriver.Chrome, private_key: str) -> None:
-    extension_id = get_extension_id(driver)
-    extension_url = f"chrome-extension://{extension_id}/home.html"
+def import_private_key(driver: webdriver.Chrome, private_key: str) -> str:
+    # returns a string of the account address
+    from web3 import Web3
+
+    account = Web3().eth.account.from_key(private_key)
+    ethereum_address = account.address
+
+    extension_url = get_extension_home_url()
     driver.get(extension_url)
 
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
     wait.until(EC.url_to_be(extension_url))
 
     try:
-        wait = WebDriverWait(driver, 10)
+        wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
         wait.until(EC.url_to_be(extension_url))
         wait.until(
             lambda driver: driver.execute_script(
@@ -301,15 +214,16 @@ def import_private_key(driver: webdriver.Chrome, private_key: str) -> None:
         import_button = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
         import_button.click()
 
+        return ethereum_address
+
     except Exception as e:
         print(e)
 
 
 def onboard(driver: webdriver.Chrome) -> None:
-    extension_id = get_extension_id(driver)
-    extension_url = f"chrome-extension://{extension_id}/home.html"
+    extension_url = get_extension_home_url()
 
-    wait = WebDriverWait(driver, timeout=10)
+    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
     wait.until(lambda driver: len(driver.window_handles) > 1)
 
     all_tabs = driver.window_handles
@@ -320,7 +234,7 @@ def onboard(driver: webdriver.Chrome) -> None:
         print(f"Tab {index + 1}: {driver.title}")
 
     for tab in all_tabs:
-        if extension_url not in driver.current_url:
+        if "home.html" not in driver.current_url:
             driver.switch_to.window(tab)
             print(driver.current_url)
 
@@ -349,11 +263,10 @@ def onboard(driver: webdriver.Chrome) -> None:
 
 
 def add_custom_network(driver: webdriver.Chrome, network: dict) -> None:
-    extension_id = get_extension_id(driver)
-    extension_url = f"chrome-extension://{extension_id}/home.html"
+    extension_url = get_extension_home_url()
     driver.get(extension_url)
 
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
     wait.until(EC.url_to_be(extension_url))
 
     xpath = "//*[@id='app-content']/div/div[2]/div/div[1]/button"
@@ -369,7 +282,7 @@ def add_custom_network(driver: webdriver.Chrome, network: dict) -> None:
     last_div.find_element(By.XPATH, ".//button").click()
 
     try:
-        type_network_details(driver, network)
+        run_script(driver, "input-network-details.js", args={"network": network})
     except Exception as e:
         print(e)
 
@@ -450,11 +363,10 @@ def add_custom_network(driver: webdriver.Chrome, network: dict) -> None:
 
 
 def switch_to_network(driver: webdriver.Chrome, network_name: str) -> None:
-    extension_id = get_extension_id(driver)
-    extension_url = f"chrome-extension://{extension_id}/home.html"
+    extension_url = get_extension_home_url()
     driver.get(extension_url)
 
-    wait = WebDriverWait(driver, 100)
+    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
     wait.until(EC.url_to_be(extension_url))
 
     xpath = "//*[@id='app-content']/div/div[2]/div/div[1]/button"
@@ -479,7 +391,17 @@ def switch_to_network(driver: webdriver.Chrome, network_name: str) -> None:
 
 
 def main():
-    driver = setup_chrome_with_extension()
+
+    options = Options()
+    service = Service()
+
+    driver = setup_chrome_driver_for_metamask(
+        options=options,
+        service=service,
+        metamask_version=SupportedVersion.LATEST,
+        headless=False,
+    )
+
     onboard(driver)
 
     zetachain_network = {

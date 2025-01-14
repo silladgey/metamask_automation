@@ -1,5 +1,5 @@
 from enum import StrEnum
 
 
-class SupportedVersions(StrEnum):
+class SupportedVersion(StrEnum):
     LATEST = "12.9.3"

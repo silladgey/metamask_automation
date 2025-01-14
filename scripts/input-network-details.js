@@ -1,3 +1,5 @@
+"use strict";
+
 const network = arguments[0];
 
 const popup = document.querySelector("section[role='dialog']");

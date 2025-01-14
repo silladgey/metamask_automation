@@ -1,3 +1,5 @@
+"use strict";
+
 const onboardingPopup = document
 	.querySelector(".eth-overview__balance")
 	.querySelector('[role="tooltip"]');

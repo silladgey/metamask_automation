@@ -32,8 +32,8 @@ class ExtensionStorage:
         )
         self.redis.hset(
             f"extension:{extension_name}",
-            "base_url",
-            f"chrome-extension://{extension_data['extension_id']}/",
+            "extension_base_url",
+            f"chrome-extension://{extension_data['extension_id']}",
         )
 
     def get_extension_id(self, extension_name: str) -> str:
@@ -49,9 +49,23 @@ class ExtensionStorage:
         """
         return self.redis.hget(f"extension:{extension_name}", "extension_id")
 
+    def get_extension_base_url(self, extension_name: str) -> str:
+        """
+        Get the base URL of an extension in Redis.
+        This method takes an extension's name and retrieves the base URL of the extension from Redis.
+
+        Args:
+            extension_name (str): Unique identifier for the extension.
+
+        Returns:
+            str: The base URL of the extension.
+        """
+        return self.redis.hget(f"extension:{extension_name}", "extension_base_url")
+
 
 if __name__ == "__main__":
     storage = ExtensionStorage()
 
     storage.store_extension("metamask", {"extension_id": "abc123"})
     print(storage.get_extension_id("metamask"))
+    print(storage.get_extension_base_url("metamask"))
