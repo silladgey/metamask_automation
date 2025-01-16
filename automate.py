@@ -1,10 +1,12 @@
+from urllib.parse import quote
+
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from urllib.parse import quote
+from selenium.webdriver.remote.webelement import WebElement
 
 from utils.constants.prompts import CONFIRM_PASSWORD_TEXT
 from utils.constants.values import DEFAULT_TIMEOUT
@@ -153,8 +155,104 @@ def import_an_existing_wallet(driver: webdriver):
     click_element(driver, button_xpath)
 
 
-def import_private_key(driver: webdriver, private_key: str) -> str:
-    # returns a string of the account address
+def open_multichain_account_picker(driver: webdriver) -> WebElement:
+    extension_url = get_extension_home_url()
+    driver.get(extension_url)
+
+    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
+    wait.until(EC.url_to_be(extension_url))
+
+    xpath = "//*[@id='app-content']/div/div[2]/div/div[2]/button"
+    account_picker_button = wait.until(
+        EC.presence_of_element_located((By.XPATH, xpath))
+    )
+    account_picker_button.click()
+
+    popup_elem = wait.until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
+    )
+
+    return popup_elem
+
+
+def close_dialog(locator: WebElement):
+    wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
+
+    close_button = wait.until(
+        EC.presence_of_element_located((By.XPATH, ".//header//button"))
+    )
+    close_button.click()
+
+
+def get_multichain_account_length(locator: WebElement) -> int:
+    wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
+
+    list_wrapper_class_name = "multichain-account-menu-popover__list"
+    wait.until(EC.presence_of_element_located((By.CLASS_NAME, list_wrapper_class_name)))
+
+    list_item_class_name = "multichain-account-list-item"
+    account_list_items = wait.until(
+        EC.presence_of_all_elements_located((By.CLASS_NAME, list_item_class_name))
+    )
+
+    return len(account_list_items)
+
+
+def get_multichain_account_index(locator: WebElement, account_address: str) -> int:
+    wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
+
+    list_wrapper_class_name = "multichain-account-menu-popover__list"
+    wait.until(EC.presence_of_element_located((By.CLASS_NAME, list_wrapper_class_name)))
+
+    list_item_class_name = "multichain-account-list-item"
+    account_list_items = wait.until(
+        EC.presence_of_all_elements_located((By.CLASS_NAME, list_item_class_name))
+    )
+
+    for index, account in enumerate(account_list_items):
+        wait = WebDriverWait(account, timeout=DEFAULT_TIMEOUT)
+        account_address_elem = wait.until(
+            EC.presence_of_element_located(
+                (By.XPATH, ".//p[@data-testid='account-list-address']")
+            )
+        )
+        if (
+            account_address_elem.text[:7] == account_address[:7]
+            and account_address_elem.text[-5:] == account_address[-5:]
+        ):
+            return index
+
+    return -1
+
+
+def get_multichain_accounts_list(locator: WebElement) -> list[WebElement]:
+    list_wrapper_class_name = "multichain-account-menu-popover__list"
+    list_wrapper = locator.find_element(By.CLASS_NAME, list_wrapper_class_name)
+
+    list_item_class_name = "multichain-account-list-item"
+    account_list_items = list_wrapper.find_elements(By.CLASS_NAME, list_item_class_name)
+    accounts_array = [multichain_account for multichain_account in account_list_items]
+
+    return accounts_array
+
+
+def switch_account(locator: WebElement, account_address: str) -> bool:
+    index = get_multichain_account_index(locator, account_address)
+
+    if index == -1:
+        return False
+
+    accounts = get_multichain_accounts_list(locator)
+
+    if len(accounts) < index:
+        return False
+
+    accounts[index].click()
+
+    return True
+
+
+def import_account(driver: webdriver, private_key: str) -> str:
     from web3 import Web3
 
     account = Web3().eth.account.from_key(private_key)
@@ -183,21 +281,6 @@ def import_private_key(driver: webdriver, private_key: str) -> str:
         popup_elem = wait.until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
         )
-        # ? GET ALL THE IMPORTED ACCOUNTS
-        # try:
-        #     search_input = popup_elem.find_element(
-        #         By.CSS_SELECTOR, "input[type='search']"
-        #     )
-        #     print("Search input field found")
-        # except Exception as e:
-        #     print("Search input field not found:", e)
-
-        # parent_elem = popup_elem.find_element(By.XPATH, "./div[1]")
-        # print(parent_elem.text)
-        # child_divs = parent_elem.find_elements(By.XPATH, "./div")
-        # accounts_array = [child_div for child_div in child_divs]
-        # accounts = len(accounts_array)
-        # print("Accounts", accounts)
 
         print("select add account")
         last_div = popup_elem.find_elements(By.XPATH, "./div")[-1]
