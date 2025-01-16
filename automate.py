@@ -395,9 +395,8 @@ def switch_to_network(driver: webdriver.Chrome, network_name: str) -> None:
 
 
 def disconnect_dapp(driver: webdriver, site_url: str):
-    extension_url = get_extension_home_url()
     review_permissions_url = (
-        extension_url + "#review-permissions/" + quote(site_url, safe="")
+        get_extension_home_url() + "#review-permissions/" + quote(site_url, safe="")
     )
     driver.get(review_permissions_url)
 
@@ -451,7 +450,6 @@ def disconnect_dapp(driver: webdriver, site_url: str):
 
 
 def main():
-
     options = Options()
     service = Service()
 
