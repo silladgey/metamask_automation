@@ -41,7 +41,7 @@ def close_tab(driver: webdriver.Chrome, tab_index: int) -> None:
     driver.close()
 
 
-def create_a_new_wallet(driver: webdriver.Chrome, password: str):
+def create_a_new_wallet(driver: webdriver, password: str):
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
 
     button_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/ul/li[2]/button"
@@ -148,12 +148,12 @@ def create_a_new_wallet(driver: webdriver.Chrome, password: str):
             print(e)
 
 
-def import_an_existing_wallet(driver: webdriver.Chrome):
+def import_an_existing_wallet(driver: webdriver):
     button_xpath = "//*[@id='app-content']/div/div[2]/div/div/div/ul/li[3]/button"
     click_element(driver, button_xpath)
 
 
-def import_private_key(driver: webdriver.Chrome, private_key: str) -> str:
+def import_private_key(driver: webdriver, private_key: str) -> str:
     # returns a string of the account address
     from web3 import Web3
 
@@ -224,7 +224,7 @@ def import_private_key(driver: webdriver.Chrome, private_key: str) -> str:
         print(e)
 
 
-def onboard(driver: webdriver.Chrome) -> None:
+def onboard(driver: webdriver) -> None:
     extension_url = get_extension_home_url()
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
@@ -252,7 +252,7 @@ def onboard(driver: webdriver.Chrome) -> None:
 
     storage = SecureCredentialStorage()
 
-    password = get_password(CONFIRM_PASSWORD_TEXT)
+    password = "12345678"  # get_password(CONFIRM_PASSWORD_TEXT)
     verified = storage.verify_credential("metamask", "password_hash", password)
 
     if verified:
@@ -266,7 +266,7 @@ def onboard(driver: webdriver.Chrome) -> None:
         return None
 
 
-def add_custom_network(driver: webdriver.Chrome, network: dict) -> None:
+def add_custom_network(driver: webdriver, network: dict) -> None:
     extension_url = get_extension_home_url()
     driver.get(extension_url)
 
@@ -366,7 +366,7 @@ def add_custom_network(driver: webdriver.Chrome, network: dict) -> None:
     save_button.click()
 
 
-def switch_to_network(driver: webdriver.Chrome, network_name: str) -> None:
+def switch_to_network(driver: webdriver, network_name: str) -> None:
     extension_url = get_extension_home_url()
     driver.get(extension_url)
 
