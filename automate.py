@@ -4,6 +4,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from urllib.parse import quote
 
 from utils.constants.prompts import CONFIRM_PASSWORD_TEXT
 from utils.constants.values import DEFAULT_TIMEOUT
@@ -182,6 +183,7 @@ def import_private_key(driver: webdriver.Chrome, private_key: str) -> str:
         popup_elem = wait.until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
         )
+        # ? GET ALL THE IMPORTED ACCOUNTS
         # try:
         #     search_input = popup_elem.find_element(
         #         By.CSS_SELECTOR, "input[type='search']"
@@ -390,6 +392,62 @@ def switch_to_network(driver: webdriver.Chrome, network_name: str) -> None:
             network.click()
             break
         print(network.text)
+
+
+def disconnect_dapp(driver: webdriver, site_url: str):
+    extension_url = get_extension_home_url()
+    review_permissions_url = (
+        extension_url + "#review-permissions/" + quote(site_url, safe="")
+    )
+    driver.get(review_permissions_url)
+
+    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
+    wait.until(EC.url_to_be(review_permissions_url))
+
+    is_connected = False
+
+    try:
+        wait = WebDriverWait(driver, timeout=10)
+        content_class_name = "multichain-connection-list-item"
+        wait.until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, content_class_name))
+        )
+        is_connected = True
+    except Exception:
+        wait = WebDriverWait(driver, timeout=10)
+        content_class_name = "connections-page__no-site-connected-content"
+        no_site_connected_content = wait.until(
+            EC.presence_of_element_located((By.CLASS_NAME, content_class_name))
+        )
+        print(no_site_connected_content.text)
+
+    if is_connected:
+        disconnect_btn_xpath = (
+            "//*[@id='app-content']/div/div/div/div/div[3]/div/button"
+        )
+        disconnect_button = wait.until(
+            EC.presence_of_element_located((By.XPATH, disconnect_btn_xpath))
+        )
+        disconnect_button.click()
+
+        popup_elem = wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
+        )
+
+        wait = WebDriverWait(popup_elem, timeout=DEFAULT_TIMEOUT)
+
+        last_div = wait.until(EC.presence_of_all_elements_located((By.XPATH, "./div")))[
+            -1
+        ]
+
+        wait = WebDriverWait(last_div, timeout=DEFAULT_TIMEOUT)
+
+        disconnect_all_button = wait.until(
+            EC.presence_of_element_located((By.XPATH, ".//button"))
+        )
+        disconnect_all_button.click()
+
+        print("Disconnected from", site_url)
 
 
 def main():
