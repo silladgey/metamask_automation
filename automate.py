@@ -1,4 +1,5 @@
 from urllib.parse import quote
+from typing import Union
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -26,19 +27,19 @@ def get_extension_home_url() -> str:
     return extension_url + "/home.html"
 
 
-def click_element(driver: webdriver.Chrome, xpath: str):
+def click_element(driver: webdriver, xpath: str):
     elem = driver.find_element(By.XPATH, xpath)
     if elem:
         elem.click()
 
 
 # * SELENIUM HELPER FUNCTION
-def get_open_tabs(driver: webdriver.Chrome) -> list:
+def get_open_tabs(driver: webdriver) -> list:
     return driver.window_handles
 
 
 # * SELENIUM HELPER FUNTION
-def close_tab(driver: webdriver.Chrome, tab_index: int) -> None:
+def close_tab(driver: webdriver, tab_index: int) -> None:
     driver.switch_to.window(driver.window_handles[tab_index])
     driver.close()
 
@@ -307,39 +308,52 @@ def import_account(driver: webdriver, private_key: str) -> str:
         print(e)
 
 
-def onboard(driver: webdriver) -> None:
+def onboard_extension(driver: webdriver) -> Union[webdriver, None]:
     extension_url = get_extension_home_url()
+    original_window = driver.current_window_handle
+    open_window_handles = driver.window_handles
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
-    wait.until(lambda driver: len(driver.window_handles) > 1)
+    wait.until(
+        lambda driver: len(driver.window_handles) > len(open_window_handles)
+    )  # ? wait for the extension to open in a new tab
 
-    all_tabs = driver.window_handles
+    open_window_handles = driver.window_handles
+    extension_window = None
 
-    print(f"There are {len(all_tabs)} tabs open")
-    for index, tab in enumerate(all_tabs):
-        driver.switch_to.window(tab)
-        print(f"Tab {index + 1}: {driver.title}")
+    for window_handle in driver.window_handles:
+        driver.switch_to.window(window_handle)
 
-    for tab in all_tabs:
-        if "home.html" not in driver.current_url:
-            driver.switch_to.window(tab)
-            print(driver.current_url)
+        if "offscreen.html" in driver.current_url:  # ? offscreen tab
+            driver.close()
+            driver.switch_to.window(original_window)
+            wait.until(
+                lambda driver: len(driver.window_handles)
+                == len(open_window_handles) - 1
+            )
 
+        if "#onboarding" in driver.current_url:  # ? onboarding tab
+            extension_window = window_handle
+
+    driver.switch_to.window(extension_window)
     driver.get(extension_url)
 
-    wait.until(
-        lambda driver: driver.execute_script("return document.readyState == 'complete'")
-    )
+    wait.until(EC.url_contains(extension_url + "#onboarding"))
+    wait.until(lambda driver: run_script(driver, "readyState.js"))
 
-    print("Onboarding...")
+    print("Starting MetaMask onboarding...")
 
     storage = SecureCredentialStorage()
-
-    password = "12345678"  # get_password(CONFIRM_PASSWORD_TEXT)
+    password = get_password(CONFIRM_PASSWORD_TEXT)
     verified = storage.verify_credential("metamask", "password_hash", password)
 
     if verified:
-        click_element(driver, "//*[@id='onboarding__terms-checkbox']")
+        terms_checkbox_xpath = "//*[@id='onboarding__terms-checkbox']"
+        terms_checkbox = driver.find_element(By.XPATH, terms_checkbox_xpath)
+
+        if not terms_checkbox.is_selected():
+            terms_checkbox.click()
+
         create_a_new_wallet(driver, password)
 
         print("Onboarding complete")
@@ -543,7 +557,7 @@ def main():
         headless=False,
     )
 
-    onboard(driver)
+    onboard_extension(driver)
 
     zetachain_network = {
         "name": "ZetaChain Mainnet",
