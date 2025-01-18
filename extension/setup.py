@@ -4,17 +4,20 @@ import requests
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.shadowroot import ShadowRoot
 from selenium.webdriver.remote.webelement import WebElement
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+from extension.helpers import toggle_developer_mode
+
+from storage.extension import ExtensionStorage
 
 from utils.enums.developer_mode import DevModeState
 from utils.enums.metamask_extension import SupportedVersion
 
-from storage.extension import ExtensionStorage
 
-EXTENSION_DIR = os.path.join(os.getcwd(), "extension")
+EXTENSION_DIR = os.path.join(os.getcwd(), "extension_files")
 
 
 def download_metamask_zip(version: str) -> None:
@@ -158,59 +161,6 @@ def get_chrome_extensions_manager(locator: WebElement) -> ShadowRoot:
     return extensions_manager.shadow_root
 
 
-def toggle_developer_mode(locator: WebElement, to: DevModeState) -> bool:
-    """
-    Enable developer mode in the MetaMask extension.
-
-    Args:
-        locator (WebElement): The WebElement to locate the developer mode trigger
-        to (DevModeState): The state to set the developer mode to
-    Returns:
-        bool: The state of the developer mode after toggling
-    """
-    wait = WebDriverWait(locator, 100)
-    developer_mode_trigger = wait.until(
-        EC.presence_of_element_located((By.ID, "devMode"))
-    )
-
-    is_dev_mode_enabled = developer_mode_trigger.get_attribute("checked")
-
-    if to == DevModeState.OFF and not is_dev_mode_enabled:  # ? 00
-        return False
-    if to == DevModeState.ON and is_dev_mode_enabled:  # ? 11
-        return True
-    if to == DevModeState.OFF and is_dev_mode_enabled:  # ? 01
-        developer_mode_trigger.click()
-        return False
-    if to == DevModeState.ON and not is_dev_mode_enabled:  # ? 10
-        developer_mode_trigger.click()
-        return True
-    if to not in DevModeState.__members__:  # ? default
-        raise ValueError(f"Invalid developer mode state: {to}")
-
-
-def run_script(driver: webdriver, file_name: str, args: dict = None) -> any:
-    """
-    Run a JavaScript script in the browser using a Selenium WebDriver.
-
-    Args:
-        driver (webdriver): The Selenium WebDriver instance controlling the browser.
-        path (str): The path to the JavaScript file to run.
-        args (dict): The arguments to pass to the script.
-    Returns:
-        any: The result of the script execution.
-    """
-    with open(
-        os.path.join(os.getcwd(), "scripts", file_name), "r", encoding="utf-8"
-    ) as f:
-        script = f.read()
-    if args:
-        result = driver.execute_script(script, *args.values())
-    else:
-        result = driver.execute_script(script)
-    return result
-
-
 def store_extension_id(driver: webdriver, storage, extension_name: str) -> str:
     """
     Finds the MetaMask extension ID in the browser using a Selenium WebDriver.
@@ -265,7 +215,6 @@ if __name__ == "__main__":
 
     options = Options()
     service = Service()
-    storage = ExtensionStorage()
 
     driver = setup_chrome_driver_for_metamask(
         options=options,
@@ -274,6 +223,7 @@ if __name__ == "__main__":
         headless=False,
     )
 
+    storage = ExtensionStorage()
     metamask_extension_id = storage.get_extension_id("metamask")
     print(f"MetaMask extension ID: {metamask_extension_id}")
 
