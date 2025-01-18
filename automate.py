@@ -1,4 +1,5 @@
 from urllib.parse import quote
+from web3 import Web3
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -17,6 +18,56 @@ from storage.extension import ExtensionStorage
 
 from utils.constants.values import DEFAULT_TIMEOUT
 from utils.enums.metamask_extension import SupportedVersion
+
+
+def import_multichain_account(driver: webdriver, private_key: str) -> str:
+    # ! TODO validate private key
+    account = Web3().eth.account.from_key(private_key)
+    eth_address = account.address
+
+    def add_account(locator: WebElement):
+        wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
+
+        # ? Click "Add account or hardware wallet"
+        action_button_xpath = (
+            "//*[@data-testid='multichain-account-menu-popover-action-button']"
+        )
+
+        wait.until(
+            EC.presence_of_element_located((By.XPATH, action_button_xpath))
+        ).click()
+
+        # ? Select "Import account"
+        add_imported_account_button_xpath = (
+            "//*[@data-testid='multichain-account-menu-popover-add-imported-account']"
+        )
+
+        wait.until(
+            EC.presence_of_element_located(
+                (By.XPATH, add_imported_account_button_xpath)
+            )
+        ).click()
+
+        # ? Enter private key string
+        input_field_xpath = "//*[@id='private-key-box']"
+        input_field = wait.until(
+            EC.presence_of_element_located((By.XPATH, input_field_xpath))
+        )
+        input_field.send_keys(private_key)
+
+        # ? Click "Import"
+        import_account_confirm_xpath = (
+            "//*[@data-testid='import-account-confirm-button']"
+        )
+
+        wait.until(
+            EC.presence_of_element_located((By.XPATH, import_account_confirm_xpath))
+        ).click()
+
+    account_picker = open_multichain_account_picker(driver)
+    add_account(account_picker)
+
+    return eth_address
 
 
 def open_multichain_account_picker(driver: webdriver) -> WebElement:
@@ -112,58 +163,6 @@ def switch_account(locator: WebElement, account_address: str) -> bool:
     accounts[index].click()
 
     return True
-
-
-def import_account(driver: webdriver, private_key: str) -> str:
-    from web3 import Web3
-
-    # ! TODO validate private key
-    account = Web3().eth.account.from_key(private_key)
-    eth_address = account.address
-
-    def add_account(locator: WebElement):
-        wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
-
-        # ? Click "Add account or hardware wallet"
-        action_button_xpath = (
-            "//*[@data-testid='multichain-account-menu-popover-action-button']"
-        )
-
-        wait.until(
-            EC.presence_of_element_located((By.XPATH, action_button_xpath))
-        ).click()
-
-        # ? Select "Import account"
-        add_imported_account_button_xpath = (
-            "//*[@data-testid='multichain-account-menu-popover-add-imported-account']"
-        )
-
-        wait.until(
-            EC.presence_of_element_located(
-                (By.XPATH, add_imported_account_button_xpath)
-            )
-        ).click()
-
-        # ? Enter private key string
-        input_field_xpath = "//*[@id='private-key-box']"
-        input_field = wait.until(
-            EC.presence_of_element_located((By.XPATH, input_field_xpath))
-        )
-        input_field.send_keys(private_key)
-
-        # ? Click "Import"
-        import_account_confirm_xpath = (
-            "//*[@data-testid='import-account-confirm-button']"
-        )
-
-        wait.until(
-            EC.presence_of_element_located((By.XPATH, import_account_confirm_xpath))
-        ).click()
-
-    account_picker = open_multichain_account_picker(driver)
-    add_account(account_picker)
-
-    return eth_address
 
 
 def add_custom_network(driver: webdriver, network: dict) -> None:
