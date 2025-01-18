@@ -33,17 +33,6 @@ def click_element(driver: webdriver, xpath: str):
         elem.click()
 
 
-# * SELENIUM HELPER FUNCTION
-def get_open_tabs(driver: webdriver) -> list:
-    return driver.window_handles
-
-
-# * SELENIUM HELPER FUNTION
-def close_tab(driver: webdriver, tab_index: int) -> None:
-    driver.switch_to.window(driver.window_handles[tab_index])
-    driver.close()
-
-
 def create_a_new_wallet(driver: webdriver, password: str):
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
 
