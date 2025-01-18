@@ -188,12 +188,10 @@ def open_multichain_account_picker(driver: webdriver) -> WebElement:
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
     wait.until(EC.url_to_be(extension_url))
+    wait.until(lambda driver: run_script(driver, "readyState.js"))
 
-    xpath = "//*[@id='app-content']/div/div[2]/div/div[2]/button"
-    account_picker_button = wait.until(
-        EC.presence_of_element_located((By.XPATH, xpath))
-    )
-    account_picker_button.click()
+    trigger_xpath = "//*[@data-testid='account-menu-icon']"
+    wait.until(EC.presence_of_element_located((By.XPATH, trigger_xpath))).click()
 
     popup_elem = wait.until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
@@ -286,20 +284,6 @@ def import_account(driver: webdriver, private_key: str) -> str:
     account = Web3().eth.account.from_key(private_key)
     ethereum_address = account.address
 
-    extension_url = get_extension_home_url()
-    driver.get(extension_url)
-
-    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
-    wait.until(EC.url_to_be(extension_url))
-    wait.until(lambda driver: run_script(driver, "readyState.js"))
-
-    def open_account_menu(trigger: WebElement) -> WebElement:
-        trigger.click()
-
-        return wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
-        )
-
     def add_account(locator: WebElement):
         wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
 
@@ -339,13 +323,8 @@ def import_account(driver: webdriver, private_key: str) -> str:
             EC.presence_of_element_located((By.XPATH, import_account_confirm_xpath))
         ).click()
 
-    account_menu_button_xpath = "//*[@data-testid='account-menu-icon']"
-    account_menu_button = wait.until(
-        EC.presence_of_element_located((By.XPATH, account_menu_button_xpath))
-    )
-
-    account_menu_dialog = open_account_menu(account_menu_button)
-    add_account(account_menu_dialog)
+    account_picker = open_multichain_account_picker(driver)
+    add_account(account_picker)
 
     return ethereum_address
 
