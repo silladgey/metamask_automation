@@ -308,7 +308,7 @@ def import_account(driver: webdriver, private_key: str) -> str:
         print(e)
 
 
-def onboard_extension(driver: webdriver) -> Union[webdriver, None]:
+def onboard_extension(driver: webdriver) -> webdriver:
     extension_url = get_extension_home_url()
     original_window = driver.current_window_handle
     open_window_handles = driver.window_handles
@@ -319,7 +319,7 @@ def onboard_extension(driver: webdriver) -> Union[webdriver, None]:
     )  # ? wait for the extension to open in a new tab
 
     open_window_handles = driver.window_handles
-    extension_window = None
+    onboarding_window = None
 
     for window_handle in driver.window_handles:
         driver.switch_to.window(window_handle)
@@ -333,9 +333,9 @@ def onboard_extension(driver: webdriver) -> Union[webdriver, None]:
             )
 
         if "#onboarding" in driver.current_url:  # ? onboarding tab
-            extension_window = window_handle
+            onboarding_window = window_handle
 
-    driver.switch_to.window(extension_window)
+    driver.switch_to.window(onboarding_window)  # ? switch to the onboarding tab
     driver.get(extension_url)
 
     wait.until(EC.url_contains(extension_url + "#onboarding"))
@@ -359,8 +359,7 @@ def onboard_extension(driver: webdriver) -> Union[webdriver, None]:
         print("Onboarding complete")
         return driver
     else:
-        print("Onboarding failed")
-        return None
+        raise Exception("Failed to verify password")
 
 
 def add_custom_network(driver: webdriver, network: dict) -> None:
@@ -491,7 +490,7 @@ def switch_to_network(driver: webdriver, network_name: str) -> None:
         print(network.text)
 
 
-def disconnect_dapp(driver: webdriver, site_url: str):
+def disconnect_dapp_permission(driver: webdriver, site_url: str):
     review_permissions_url = (
         get_extension_home_url() + "#review-permissions/" + quote(site_url, safe="")
     )
