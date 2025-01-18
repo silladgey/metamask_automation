@@ -282,6 +282,7 @@ def switch_account(locator: WebElement, account_address: str) -> bool:
 def import_account(driver: webdriver, private_key: str) -> str:
     from web3 import Web3
 
+    # ! TODO validate private key
     account = Web3().eth.account.from_key(private_key)
     ethereum_address = account.address
 
@@ -290,48 +291,63 @@ def import_account(driver: webdriver, private_key: str) -> str:
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
     wait.until(EC.url_to_be(extension_url))
+    wait.until(lambda driver: run_script(driver, "readyState.js"))
 
-    try:
-        wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
-        wait.until(EC.url_to_be(extension_url))
-        wait.until(
-            lambda driver: driver.execute_script(
-                "return document.readyState == 'complete'"
-            )
-        )
+    def open_account_menu(trigger: WebElement) -> WebElement:
+        trigger.click()
 
-        print("opening accounts popup")
-        xpath = "//*[@id='app-content']/div/div[2]/div/div[2]/button"
-        parent_elem = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
-        parent_elem.click()
-
-        popup_elem = wait.until(
+        return wait.until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
         )
 
-        print("select add account")
-        last_div = popup_elem.find_elements(By.XPATH, "./div")[-1]
-        last_div.find_element(By.XPATH, ".//button").click()
+    def add_account(locator: WebElement):
+        wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
 
-        print("select import account")
-        xpath = "/html/body/div[3]/div[3]/div/section/div/div[2]/button"
-        import_button = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
-        import_button.click()
+        # ? Click "Add account or hardware wallet"
+        action_button_xpath = (
+            "//*[@data-testid='multichain-account-menu-popover-action-button']"
+        )
 
-        print("paste private key")
-        xpath = "//*[@id='private-key-box']"
-        input_field = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+        wait.until(
+            EC.presence_of_element_located((By.XPATH, action_button_xpath))
+        ).click()
+
+        # ? Select "Import account"
+        add_imported_account_button_xpath = (
+            "//*[@data-testid='multichain-account-menu-popover-add-imported-account']"
+        )
+
+        wait.until(
+            EC.presence_of_element_located(
+                (By.XPATH, add_imported_account_button_xpath)
+            )
+        ).click()
+
+        # ? Enter private key string
+        input_field_xpath = "//*[@id='private-key-box']"
+        input_field = wait.until(
+            EC.presence_of_element_located((By.XPATH, input_field_xpath))
+        )
         input_field.send_keys(private_key)
 
-        print("select import")
-        xpath = "/html/body/div[3]/div[3]/div/section/div/div/div[2]/button[2]"
-        import_button = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
-        import_button.click()
+        # ? Click "Import"
+        import_account_confirm_xpath = (
+            "//*[@data-testid='import-account-confirm-button']"
+        )
 
-        return ethereum_address
+        wait.until(
+            EC.presence_of_element_located((By.XPATH, import_account_confirm_xpath))
+        ).click()
 
-    except Exception as e:
-        print(e)
+    account_menu_button_xpath = "//*[@data-testid='account-menu-icon']"
+    account_menu_button = wait.until(
+        EC.presence_of_element_located((By.XPATH, account_menu_button_xpath))
+    )
+
+    account_menu_dialog = open_account_menu(account_menu_button)
+    add_account(account_menu_dialog)
+
+    return ethereum_address
 
 
 def onboard_extension(
