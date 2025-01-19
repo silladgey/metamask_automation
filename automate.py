@@ -63,22 +63,7 @@ def import_multichain_account(driver: webdriver, private_key: str) -> str:
             EC.presence_of_element_located((By.XPATH, import_account_confirm_xpath))
         ).click()
 
-    extension_url = get_extension_home_url()
-
-    if driver.current_url != extension_url:
-        driver.get(extension_url)
-
-    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
-    wait.until(EC.url_to_be(extension_url))
-    wait.until(lambda driver: run_script(driver, "readyState.js"))
-
-    account_menu_button = wait.until(
-        EC.presence_of_element_located(
-            (By.XPATH, "//*[@data-testid='account-menu-icon']")
-        )
-    )
-
-    account_picker = open_dialog(driver, account_menu_button)
+    account_picker = open_multichain_account_picker(driver)
     add_account(account_picker)
 
     return eth_address
@@ -86,11 +71,12 @@ def import_multichain_account(driver: webdriver, private_key: str) -> str:
 
 def open_multichain_account_picker(driver: webdriver) -> WebElement:
     extension_url = get_extension_home_url()
-    driver.get(extension_url)
+
+    if driver.current_url != extension_url:
+        driver.get(extension_url)
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
     wait.until(EC.url_to_be(extension_url))
-    wait.until(lambda driver: run_script(driver, "readyState.js"))
 
     account_menu_button = wait.until(
         EC.presence_of_element_located(
@@ -272,7 +258,6 @@ def open_network_picker(driver: webdriver) -> WebElement:
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
     wait.until(EC.url_to_be(extension_url))
-    wait.until(lambda driver: run_script(driver, "readyState.js"))
 
     network_display_button = wait.until(
         EC.presence_of_element_located(
