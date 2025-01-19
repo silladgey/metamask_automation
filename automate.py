@@ -166,103 +166,124 @@ def switch_account(locator: WebElement, account_address: str) -> bool:
 
 
 def add_custom_network(driver: webdriver, network: dict) -> None:
-    extension_url = get_extension_home_url()
-    driver.get(extension_url)
+    def add_network_details(locator: WebElement):
+        wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
 
-    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
-    wait.until(EC.url_to_be(extension_url))
+        add_custom_network_xpath = "/html/body/div[3]/div[3]/div/section/div[2]/button"
+        wait.until(
+            EC.presence_of_element_located((By.XPATH, add_custom_network_xpath))
+        ).click()
 
-    xpath = "//*[@id='app-content']/div/div[2]/div/div[1]/button"
-    trigger_button = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
-    trigger_button.click()
+        # ? Network name
+        network_name_input = wait.until(
+            EC.presence_of_element_located((By.ID, "networkName"))
+        )
+        network_name_input.send_keys(network["name"])
 
-    popup_dialog = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
-    )
-
-    print("select add custom network")
-    last_div = popup_dialog.find_elements(By.XPATH, "./div")[-1]
-    last_div.find_element(By.XPATH, ".//button").click()
-
-    try:
-        run_script(driver, "inputNetworkDetails.js", args={"network": network})
-    except Exception as e:
-        print(e)
-
-    # add RPC url
-    trigger_button = wait.until(
-        EC.presence_of_element_located(
-            (
-                By.XPATH,
-                "/html/body/div[3]/div[3]/div/section/div/div[1]/div[2]/div/button",
+        # ? Default RPC URL
+        wait.until(
+            EC.presence_of_element_located(
+                (By.XPATH, "//*[@data-testid='test-add-rpc-drop-down']")
             )
-        )
-    )
-    trigger_button.click()
+        ).click()  # ? Click trigger
 
-    add_rpc_button = wait.until(
-        EC.presence_of_element_located(
-            (
-                By.XPATH,
-                "/html/body/div[3]/div[3]/div/section/div/div[1]/div[2]/div[2]/div/div/button",
-            )
-        )
-    )
-    add_rpc_button.click()
-
-    rpc_url_input = wait.until(EC.presence_of_element_located((By.ID, "rpcUrl")))
-
-    rpc_url_input.send_keys(network["rpc_url"])
-
-    complete_action_button = wait.until(
-        EC.presence_of_element_located(
-            (
-                By.XPATH,
-                "/html/body/div[3]/div[3]/div/section/div/div[2]/button",
-            )
-        )
-    )
-    complete_action_button.click()
-
-    if network["block_explorer_url"]:
-        trigger_xpath = (
-            "/html/body/div[3]/div[3]/div/section/div/div[1]/div[5]/div[1]/button"
-        )
-        trigger_button = wait.until(
+        wait.until(
             EC.presence_of_element_located(
                 (
                     By.XPATH,
-                    trigger_xpath,
+                    "/html/body/div[3]/div[3]/div/section/div/div[1]/div[2]/div[2]/div/div/button",
                 )
             )
-        )
-        trigger_button.click()
+        ).click()  # ? Click "Add Custom RPC"
 
-        add_block_explorer_xpath = "/html/body/div[3]/div[3]/div/section/div/div[1]/div[5]/div[2]/div/div/button"
-        add_block_explorer_url = wait.until(
-            EC.presence_of_element_located((By.XPATH, add_block_explorer_xpath))
-        )
-        add_block_explorer_url.click()
+        rpc_url_input = wait.until(EC.presence_of_element_located((By.ID, "rpcUrl")))
+        rpc_url_input.send_keys(network["rpc_url"])  # ? Enter RPC URL
 
-        block_explorer_input = wait.until(
-            EC.presence_of_element_located((By.ID, "additional-rpc-url"))
-        )
-
-        block_explorer_input.send_keys(network["block_explorer_url"])
-
-        complete_action_button = wait.until(
+        wait.until(
             EC.presence_of_element_located(
                 (
                     By.XPATH,
                     "/html/body/div[3]/div[3]/div/section/div/div[2]/button",
                 )
             )
-        )
-        complete_action_button.click()
+        ).click()  # ? Click "Save"
 
-    save_xpath = "/html/body/div[3]/div[3]/div/section/div/div[2]/button"
-    save_button = wait.until(EC.presence_of_element_located((By.XPATH, save_xpath)))
-    save_button.click()
+        # ? Chain ID
+        chain_id_input = wait.until(EC.presence_of_element_located((By.ID, "chainId")))
+        chain_id_input.send_keys(network["chain_id"])
+
+        # ? Currency symbol
+        currency_symbol_input = wait.until(
+            EC.presence_of_element_located((By.ID, "nativeCurrency"))
+        )
+        currency_symbol_input.send_keys(network["currency_symbol"])
+
+        # ? Block Explorer URL
+        if "block_explorer_url" in network and network["block_explorer_url"]:
+            try:
+                wait.until(
+                    EC.presence_of_element_located(
+                        (
+                            By.XPATH,
+                            "//*[@data-testid='test-explorer-drop-down']",
+                        )
+                    )
+                ).click()  # ? Click trigger
+            except Exception as e:
+                print(e)
+
+            wait.until(
+                EC.presence_of_element_located(
+                    (
+                        By.XPATH,
+                        "/html/body/div[3]/div[3]/div/section/div/div[1]/div[5]/div[2]/div/div/button",
+                    )
+                )
+            ).click()  # ? Click "Add a block explorer URL"
+
+            block_explorer_url_input = wait.until(
+                EC.presence_of_element_located((By.ID, "additional-rpc-url"))
+            )
+            block_explorer_url_input.send_keys(
+                network["block_explorer_url"]
+            )  # ? Enter block explorer URL
+
+            wait.until(
+                EC.presence_of_element_located(
+                    (
+                        By.XPATH,
+                        "/html/body/div[3]/div[3]/div/section/div/div[2]/button",
+                    )
+                )
+            ).click()  # ? Click "Add URL"
+
+        wait.until(
+            EC.presence_of_element_located(
+                (By.XPATH, "/html/body/div[3]/div[3]/div/section/div/div[2]/button")
+            )
+        ).click()  # ? Click "Save"
+
+    network_picker = open_network_picker(driver)
+    add_network_details(network_picker)
+
+
+def open_network_picker(driver: webdriver) -> WebElement:
+    extension_url = get_extension_home_url()
+    driver.get(extension_url)
+
+    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
+    wait.until(EC.url_to_be(extension_url))
+    wait.until(lambda driver: run_script(driver, "readyState.js"))
+
+    xpath = "//*[@data-testid='network-display']"
+    trigger_button = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+    trigger_button.click()
+
+    popup_elem = wait.until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
+    )
+
+    return popup_elem
 
 
 def switch_to_network(driver: webdriver, network_name: str) -> None:
