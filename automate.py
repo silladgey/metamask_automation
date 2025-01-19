@@ -271,30 +271,32 @@ def open_network_picker(driver: webdriver) -> WebElement:
 
 def switch_to_network(driver: webdriver, network_name: str) -> None:
     extension_url = get_extension_home_url()
-    driver.get(extension_url)
+
+    if driver.current_url != extension_url:
+        driver.get(extension_url)
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
     wait.until(EC.url_to_be(extension_url))
 
-    xpath = "//*[@id='app-content']/div/div[2]/div/div[1]/button"
-    trigger_button = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
-    trigger_button.click()
+    network_picker = open_network_picker(driver)
 
-    wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
+    wait = WebDriverWait(network_picker, timeout=DEFAULT_TIMEOUT)
+
+    # ? Network selection
+    network_list = wait.until(
+        EC.presence_of_all_elements_located(
+            (By.XPATH, "/html/body/div[3]/div[3]/div/section/div[1]/div[3]/div[2]//p")
+        )
     )
 
-    print("select a network")
-    network_list_xpath = "/html/body/div[3]/div[3]/div/section/div[1]/div[3]/div[2]"
-    network_list_wrapper = wait.until(
-        EC.presence_of_element_located((By.XPATH, network_list_xpath))
-    )
-    network_list = network_list_wrapper.find_elements(By.XPATH, ".//p")
+    network_to_select = None
+
     for network in network_list:
         if network.text == network_name:
-            network.click()
-            break
-        print(network.text)
+            network_to_select = network
+
+    if network_to_select:
+        network_to_select.click()
 
 
 def disconnect_dapp_permission(driver: webdriver, site_url: str):
