@@ -9,12 +9,34 @@ from selenium.webdriver.support import expected_conditions as EC
 from storage.extension import ExtensionStorage
 
 from utils.enums.developer_mode import DevModeState
+from utils.constants.values import DEFAULT_TIMEOUT
 
 
 def get_extension_home_url() -> str:
     storage = ExtensionStorage()
     extension_url = storage.get_extension_base_url("metamask")
     return extension_url + "/home.html"
+
+
+def open_dialog(driver: webdriver, trigger: WebElement) -> WebElement:
+    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
+
+    trigger.click()
+
+    dialog_elem = wait.until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
+    )
+
+    return dialog_elem
+
+
+def close_dialog(locator: WebElement):
+    wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
+
+    close_button = wait.until(
+        EC.presence_of_element_located((By.XPATH, ".//header//button"))
+    )
+    close_button.click()
 
 
 def run_script(driver: webdriver, file_name: str, args: dict = None) -> any:

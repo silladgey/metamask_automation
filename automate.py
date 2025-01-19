@@ -9,8 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webelement import WebElement
 
-
-from extension.helpers import run_script, get_extension_home_url
+from extension.helpers import get_extension_home_url, open_dialog, run_script
 from extension.onboarding import onboard_extension
 from extension.setup import setup_chrome_driver_for_metamask
 
@@ -64,7 +63,22 @@ def import_multichain_account(driver: webdriver, private_key: str) -> str:
             EC.presence_of_element_located((By.XPATH, import_account_confirm_xpath))
         ).click()
 
-    account_picker = open_multichain_account_picker(driver)
+    extension_url = get_extension_home_url()
+
+    if driver.current_url != extension_url:
+        driver.get(extension_url)
+
+    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
+    wait.until(EC.url_to_be(extension_url))
+    wait.until(lambda driver: run_script(driver, "readyState.js"))
+
+    account_menu_button = wait.until(
+        EC.presence_of_element_located(
+            (By.XPATH, "//*[@data-testid='account-menu-icon']")
+        )
+    )
+
+    account_picker = open_dialog(driver, account_menu_button)
     add_account(account_picker)
 
     return eth_address
@@ -78,49 +92,38 @@ def open_multichain_account_picker(driver: webdriver) -> WebElement:
     wait.until(EC.url_to_be(extension_url))
     wait.until(lambda driver: run_script(driver, "readyState.js"))
 
-    trigger_xpath = "//*[@data-testid='account-menu-icon']"
-    wait.until(EC.presence_of_element_located((By.XPATH, trigger_xpath))).click()
-
-    popup_elem = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
+    account_menu_button = wait.until(
+        EC.presence_of_element_located(
+            (By.XPATH, "//*[@data-testid='account-menu-icon']")
+        )
     )
 
-    return popup_elem
+    picker = open_dialog(driver, account_menu_button)
+    return picker
 
 
-def close_dialog(locator: WebElement):
+def get_multichain_account_list(locator: WebElement) -> list[WebElement]:
     wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
 
-    close_button = wait.until(
-        EC.presence_of_element_located((By.XPATH, ".//header//button"))
+    list_wrapper = wait.until(
+        EC.presence_of_element_located(
+            (By.CLASS_NAME, "multichain-account-menu-popover__list")
+        )
     )
-    close_button.click()
 
+    wait = WebDriverWait(list_wrapper, timeout=DEFAULT_TIMEOUT)
 
-def get_multichain_account_length(locator: WebElement) -> int:
-    wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
-
-    list_wrapper_class_name = "multichain-account-menu-popover__list"
-    wait.until(EC.presence_of_element_located((By.CLASS_NAME, list_wrapper_class_name)))
-
-    list_item_class_name = "multichain-account-list-item"
     account_list_items = wait.until(
-        EC.presence_of_all_elements_located((By.CLASS_NAME, list_item_class_name))
+        EC.presence_of_all_elements_located(
+            (By.CLASS_NAME, "multichain-account-list-item")
+        )
     )
 
-    return len(account_list_items)
+    return account_list_items
 
 
 def get_multichain_account_index(locator: WebElement, account_address: str) -> int:
-    wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
-
-    list_wrapper_class_name = "multichain-account-menu-popover__list"
-    wait.until(EC.presence_of_element_located((By.CLASS_NAME, list_wrapper_class_name)))
-
-    list_item_class_name = "multichain-account-list-item"
-    account_list_items = wait.until(
-        EC.presence_of_all_elements_located((By.CLASS_NAME, list_item_class_name))
-    )
+    account_list_items = get_multichain_account_list(locator)
 
     for index, account in enumerate(account_list_items):
         wait = WebDriverWait(account, timeout=DEFAULT_TIMEOUT)
@@ -138,15 +141,9 @@ def get_multichain_account_index(locator: WebElement, account_address: str) -> i
     return -1
 
 
-def get_multichain_accounts_list(locator: WebElement) -> list[WebElement]:
-    list_wrapper_class_name = "multichain-account-menu-popover__list"
-    list_wrapper = locator.find_element(By.CLASS_NAME, list_wrapper_class_name)
-
-    list_item_class_name = "multichain-account-list-item"
-    account_list_items = list_wrapper.find_elements(By.CLASS_NAME, list_item_class_name)
-    accounts_array = [multichain_account for multichain_account in account_list_items]
-
-    return accounts_array
+def get_multichain_account_length(locator: WebElement) -> list[WebElement]:
+    multichain_accounts = get_multichain_account_list(locator)
+    return len(multichain_accounts)
 
 
 def switch_account(locator: WebElement, account_address: str) -> bool:
@@ -155,7 +152,7 @@ def switch_account(locator: WebElement, account_address: str) -> bool:
     if index == -1:
         return False
 
-    accounts = get_multichain_accounts_list(locator)
+    accounts = get_multichain_account_list(locator)
 
     if len(accounts) < index:
         return False
@@ -269,21 +266,22 @@ def add_custom_network(driver: webdriver, network: dict) -> None:
 
 def open_network_picker(driver: webdriver) -> WebElement:
     extension_url = get_extension_home_url()
-    driver.get(extension_url)
+
+    if driver.current_url != extension_url:
+        driver.get(extension_url)
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
     wait.until(EC.url_to_be(extension_url))
     wait.until(lambda driver: run_script(driver, "readyState.js"))
 
-    xpath = "//*[@data-testid='network-display']"
-    trigger_button = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
-    trigger_button.click()
-
-    popup_elem = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
+    network_display_button = wait.until(
+        EC.presence_of_element_located(
+            (By.XPATH, "//*[@data-testid='network-display']")
+        )
     )
 
-    return popup_elem
+    picker = open_dialog(driver, network_display_button)
+    return picker
 
 
 def switch_to_network(driver: webdriver, network_name: str) -> None:
