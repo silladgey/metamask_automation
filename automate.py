@@ -9,7 +9,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webelement import WebElement
 
-from extension.helpers import get_extension_home_url, open_dialog, run_script
+from extension.helpers import (
+    get_extension_home_url,
+    open_dialog,
+    close_dialog,
+    run_script,
+)
 from extension.onboarding import onboard_extension
 from extension.setup import setup_chrome_driver_for_metamask
 
@@ -88,7 +93,7 @@ def open_multichain_account_picker(driver: webdriver) -> WebElement:
     return picker
 
 
-def get_multichain_account_list(locator: WebElement) -> list[WebElement]:
+def list_multichain_account_items(locator: WebElement) -> list[WebElement]:
     wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
 
     list_wrapper = wait.until(
@@ -109,7 +114,7 @@ def get_multichain_account_list(locator: WebElement) -> list[WebElement]:
 
 
 def get_multichain_account_index(locator: WebElement, account_address: str) -> int:
-    account_list_items = get_multichain_account_list(locator)
+    account_list_items = list_multichain_account_items(locator)
 
     for index, account in enumerate(account_list_items):
         wait = WebDriverWait(account, timeout=DEFAULT_TIMEOUT)
@@ -128,28 +133,44 @@ def get_multichain_account_index(locator: WebElement, account_address: str) -> i
 
 
 def get_multichain_account_length(locator: WebElement) -> list[WebElement]:
-    multichain_accounts = get_multichain_account_list(locator)
+    multichain_accounts = list_multichain_account_items(locator)
     return len(multichain_accounts)
 
 
-def switch_account(locator: WebElement, account_address: str) -> bool:
+def switch_account(locator: WebElement, account_address: str) -> str:
+    accounts = list_multichain_account_items(locator)
     index = get_multichain_account_index(locator, account_address)
 
-    if index == -1:
-        return False
-
-    accounts = get_multichain_account_list(locator)
-
+    # ? Account list is empty
     if len(accounts) < index:
-        return False
+        return None
+
+    # ? Account not found
+    if index == -1:
+        return None
 
     accounts[index].click()
 
-    return True
+    return account_address
 
 
-def add_custom_network(driver: webdriver, network: dict) -> None:
-    def add_network_details(locator: WebElement):
+def add_custom_network(driver: webdriver, network: dict) -> bool:
+    def click_save(wrapper_locator: WebElement) -> bool:
+        wait = WebDriverWait(wrapper_locator, timeout=DEFAULT_TIMEOUT)
+        try:
+            wait.until(
+                EC.presence_of_element_located(
+                    (
+                        By.XPATH,
+                        "/html/body/div[3]/div[3]/div/section/div/div[2]/button",
+                    )
+                )
+            ).click()
+            return True
+        except Exception:
+            return False
+
+    def add_network_details(locator: WebElement) -> bool:
         wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
 
         add_custom_network_xpath = "/html/body/div[3]/div[3]/div/section/div[2]/button"
@@ -182,14 +203,7 @@ def add_custom_network(driver: webdriver, network: dict) -> None:
         rpc_url_input = wait.until(EC.presence_of_element_located((By.ID, "rpcUrl")))
         rpc_url_input.send_keys(network["rpc_url"])  # ? Enter RPC URL
 
-        wait.until(
-            EC.presence_of_element_located(
-                (
-                    By.XPATH,
-                    "/html/body/div[3]/div[3]/div/section/div/div[2]/button",
-                )
-            )
-        ).click()  # ? Click "Save"
+        click_save(locator)
 
         # ? Chain ID
         chain_id_input = wait.until(EC.presence_of_element_located((By.ID, "chainId")))
@@ -212,8 +226,8 @@ def add_custom_network(driver: webdriver, network: dict) -> None:
                         )
                     )
                 ).click()  # ? Click trigger
-            except Exception as e:
-                print(e)
+            except Exception:
+                return click_save(locator)
 
             wait.until(
                 EC.presence_of_element_located(
@@ -231,23 +245,32 @@ def add_custom_network(driver: webdriver, network: dict) -> None:
                 network["block_explorer_url"]
             )  # ? Enter block explorer URL
 
-            wait.until(
-                EC.presence_of_element_located(
-                    (
-                        By.XPATH,
-                        "/html/body/div[3]/div[3]/div/section/div/div[2]/button",
-                    )
-                )
-            ).click()  # ? Click "Add URL"
+            click_save(locator)
 
-        wait.until(
-            EC.presence_of_element_located(
-                (By.XPATH, "/html/body/div[3]/div[3]/div/section/div/div[2]/button")
-            )
-        ).click()  # ? Click "Save"
+        return click_save(locator)
 
     network_picker = open_network_picker(driver)
-    add_network_details(network_picker)
+
+    try:
+        add_network_details(network_picker)
+
+        wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
+
+        success_notification = wait.until(
+            EC.presence_of_element_located(
+                (By.CLASS_NAME, "actionable-message--success")
+            )
+        )
+
+        if success_notification:
+            print(success_notification.text)
+            return True
+
+    except Exception:
+        close_dialog(network_picker)
+        close_dialog(network_picker)
+
+    return False
 
 
 def open_network_picker(driver: webdriver) -> WebElement:
@@ -269,7 +292,39 @@ def open_network_picker(driver: webdriver) -> WebElement:
     return picker
 
 
-def switch_to_network(driver: webdriver, network_name: str) -> None:
+def list_network_items(locator: WebElement) -> list[WebElement]:
+    wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
+
+    network_list_items = wait.until(
+        EC.presence_of_all_elements_located(
+            (By.XPATH, "/html/body/div[3]/div[3]/div/section/div[1]/div[3]/div[2]//p")
+        )
+    )
+
+    return network_list_items
+
+
+def current_network_status(locator: WebElement) -> str:
+    wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
+
+    connected_network_wrapper = wait.until(
+        EC.presence_of_element_located(
+            (By.XPATH, "//*[@data-testid='network-display']")
+        )
+    )
+
+    wait = WebDriverWait(connected_network_wrapper, timeout=DEFAULT_TIMEOUT)
+
+    connected_network = wait.until(
+        EC.presence_of_element_located(
+            (By.XPATH, ".//span[contains(@class, 'mm-text')]")
+        )
+    ).text
+
+    return connected_network
+
+
+def switch_to_network(driver: webdriver, network_name: str) -> str:
     extension_url = get_extension_home_url()
 
     if driver.current_url != extension_url:
@@ -279,31 +334,32 @@ def switch_to_network(driver: webdriver, network_name: str) -> None:
     wait.until(EC.url_to_be(extension_url))
 
     network_picker = open_network_picker(driver)
-
-    wait = WebDriverWait(network_picker, timeout=DEFAULT_TIMEOUT)
-
-    # ? Network selection
-    network_list = wait.until(
-        EC.presence_of_all_elements_located(
-            (By.XPATH, "/html/body/div[3]/div[3]/div/section/div[1]/div[3]/div[2]//p")
-        )
-    )
+    network_list_items = list_network_items(network_picker)
 
     network_to_select = None
 
-    for network in network_list:
-        if network.text == network_name:
-            network_to_select = network
+    for network_item in network_list_items:
+        if network_item.text == network_name:
+            network_to_select = network_item
 
-    if network_to_select:
-        network_to_select.click()
+    if not network_to_select:
+        print("Network not found")
+        close_dialog(network_picker)
+        return current_network_status(driver)
+
+    network_to_select.click()
+
+    return current_network_status(driver)
 
 
 def disconnect_dapp_permission(driver: webdriver, site_url: str):
-    review_permissions_url = (
-        get_extension_home_url() + "#review-permissions/" + quote(site_url, safe="")
-    )
-    driver.get(review_permissions_url)
+    extension_url = get_extension_home_url()
+
+    site_url = quote(site_url, safe="")
+    review_permissions_url = f"{extension_url}#review-permissions/{site_url}"
+
+    if driver.current_url != review_permissions_url:
+        driver.get(review_permissions_url)
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
     wait.until(EC.url_to_be(review_permissions_url))
@@ -350,8 +406,6 @@ def disconnect_dapp_permission(driver: webdriver, site_url: str):
             EC.presence_of_element_located((By.XPATH, ".//button"))
         )
         disconnect_all_button.click()
-
-        print("Disconnected from", site_url)
 
 
 def main():
