@@ -162,7 +162,7 @@ def onboarding_create_wallet(driver: webdriver, password: str):
     # ? Back to home section
     wait.until(EC.url_contains("home"))
     if "home.html" in driver.current_url:
-        wait.until(lambda driver: run_script(driver, "readyState.js"))
+        wait.until(lambda driver: run_script(driver, "documentReadyState.js"))
         wait.until(lambda driver: run_script(driver, "buttonTooltipClose.js"))
 
 
@@ -204,7 +204,7 @@ def onboard_extension(
     driver.get(home_url)
 
     wait.until(EC.url_contains(home_url + "#onboarding"))
-    wait.until(lambda driver: run_script(driver, "readyState.js"))
+    wait.until(lambda driver: run_script(driver, "documentReadyState.js"))
 
     print("Starting MetaMask onboarding...")
 
