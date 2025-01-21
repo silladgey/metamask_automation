@@ -14,7 +14,6 @@ from extension.helpers import (
     get_metamask_home_url,
     open_dialog,
     close_dialog,
-    run_script,
 )
 from extension.onboarding import onboard_extension
 from extension.setup import setup_chrome_driver_for_metamask
@@ -490,20 +489,10 @@ if __name__ == "__main__":
 
         print(f"Imported {len(addresses)} addresses")
 
-        zetachain_network = {
-            "name": "ZetaChain Mainnet",
-            "rpc_url": "https://zetachain-mainnet.public.blastapi.io/",
-            "chain_id": 7000,
-            "currency_symbol": "ZETA",
-            "block_explorer_url": "https://explorer.zetachain.com",
-        }
-
-        add_custom_network(driver, zetachain_network)
-
-        network = switch_to_network(driver, zetachain_network["name"])
+        network = current_network_status(driver)
         print("Connected to network", network)
 
-        if network != zetachain_network["name"]:
+        if network is None:
             driver.quit()
 
         # ! Implement your logic here
