@@ -12,19 +12,25 @@ from utils.enums.developer_mode import DevModeState
 from utils.constants.values import DEFAULT_TIMEOUT
 
 
-def get_extension_home_url() -> str:
+def get_metamask_extension_url() -> str:
+    storage = ExtensionStorage()
+    extension_url = storage.get_extension_base_url("metamask")
+    return extension_url
+
+
+def get_metamask_home_url() -> str:
     storage = ExtensionStorage()
     extension_url = storage.get_extension_base_url("metamask")
     return extension_url + "/home.html"
 
 
-def open_dialog(driver: webdriver, trigger: WebElement) -> WebElement:
-    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
+def open_dialog(locator: WebElement, trigger: WebElement) -> WebElement:
+    wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
 
     trigger.click()
 
     dialog_elem = wait.until(
-        EC.presence_of_element_located((By.CSS_SELECTOR, "section[role='dialog']"))
+        EC.presence_of_element_located((By.CSS_SELECTOR, "[role='dialog']"))
     )
 
     return dialog_elem

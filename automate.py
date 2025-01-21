@@ -10,7 +10,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.remote.webelement import WebElement
 
 from extension.helpers import (
-    get_extension_home_url,
+    get_metamask_extension_url,
+    get_metamask_home_url,
     open_dialog,
     close_dialog,
     run_script,
@@ -75,13 +76,13 @@ def import_multichain_account(driver: webdriver, private_key: str) -> str:
 
 
 def open_multichain_account_picker(driver: webdriver) -> WebElement:
-    extension_url = get_extension_home_url()
+    home_url = get_metamask_home_url()
 
-    if driver.current_url != extension_url:
-        driver.get(extension_url)
+    if driver.current_url != home_url:
+        driver.get(home_url)
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
-    wait.until(EC.url_to_be(extension_url))
+    wait.until(EC.url_to_be(home_url))
 
     account_menu_button = wait.until(
         EC.presence_of_element_located(
@@ -274,13 +275,13 @@ def add_custom_network(driver: webdriver, network: dict) -> bool:
 
 
 def open_network_picker(driver: webdriver) -> WebElement:
-    extension_url = get_extension_home_url()
+    home_url = get_metamask_home_url()
 
-    if driver.current_url != extension_url:
-        driver.get(extension_url)
+    if driver.current_url != home_url:
+        driver.get(home_url)
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
-    wait.until(EC.url_to_be(extension_url))
+    wait.until(EC.url_to_be(home_url))
 
     network_display_button = wait.until(
         EC.presence_of_element_located(
@@ -325,13 +326,13 @@ def current_network_status(locator: WebElement) -> str:
 
 
 def switch_to_network(driver: webdriver, network_name: str) -> str:
-    extension_url = get_extension_home_url()
+    home_url = get_metamask_home_url()
 
-    if driver.current_url != extension_url:
-        driver.get(extension_url)
+    if driver.current_url != home_url:
+        driver.get(home_url)
 
     wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
-    wait.until(EC.url_to_be(extension_url))
+    wait.until(EC.url_to_be(home_url))
 
     network_picker = open_network_picker(driver)
     network_list_items = list_network_items(network_picker)
@@ -352,11 +353,68 @@ def switch_to_network(driver: webdriver, network_name: str) -> str:
     return current_network_status(driver)
 
 
+def connect_account_to_dapp(driver: webdriver, connect_trigger: WebElement) -> bool:
+    wait = WebDriverWait(driver, timeout=DEFAULT_TIMEOUT)
+
+    original_tab = driver.current_window_handle
+    window_handles = driver.window_handles
+
+    if not connect_trigger:
+        return False
+
+    connect_trigger.click()
+
+    wait.until(lambda driver: len(driver.window_handles) == len(window_handles) + 1)
+
+    metamask_notification_tab = driver.window_handles[-1]
+    driver.switch_to.window(metamask_notification_tab)
+
+    extension_url = get_metamask_extension_url()
+    wait.until(EC.url_contains(extension_url + "/notification.html"))
+
+    try:
+        driver.implicitly_wait(DEFAULT_TIMEOUT)
+
+        for _ in range(500):
+            try:
+                if driver.find_element(By.CLASS_NAME, "permissions-connect"):
+
+                    connect_page = driver.find_element(
+                        By.XPATH, "//*[@data-testid='connect-page']"
+                    )
+
+                    action_prompt = connect_page.find_element(By.TAG_NAME, "h2")
+                    print(action_prompt.text)
+
+                    metamask_connect_script = """
+                        const button = document.querySelector("button[data-testid='confirm-btn']");
+                        if (button) {
+                            button.click();
+                        }
+                        """
+
+                    driver.execute_script(metamask_connect_script)
+
+                    return True
+            except Exception:
+                pass
+            driver.implicitly_wait(DEFAULT_TIMEOUT)
+
+        driver.close()
+        return False
+    except Exception:
+        driver.close()
+        return False
+    finally:
+        driver.switch_to.window(original_tab)
+        wait.until(lambda driver: len(driver.window_handles) == len(window_handles))
+
+
 def disconnect_dapp_permission(driver: webdriver, site_url: str):
-    extension_url = get_extension_home_url()
+    home_url = get_metamask_home_url()
 
     site_url = quote(site_url, safe="")
-    review_permissions_url = f"{extension_url}#review-permissions/{site_url}"
+    review_permissions_url = f"{home_url}#review-permissions/{site_url}"
 
     if driver.current_url != review_permissions_url:
         driver.get(review_permissions_url)
@@ -408,35 +466,48 @@ def disconnect_dapp_permission(driver: webdriver, site_url: str):
         disconnect_all_button.click()
 
 
-def main():
-    options = Options()
-    service = Service()
-
-    driver = setup_chrome_driver_for_metamask(
-        options=options,
-        service=service,
-        metamask_version=SupportedVersion.LATEST,
-        headless=False,
-    )
-
-    onboard_extension(driver)
-
-    zetachain_network = {
-        "name": "ZetaChain Mainnet",
-        "rpc_url": "https://zetachain-mainnet.public.blastapi.io/",
-        "chain_id": 7000,
-        "currency_symbol": "ZETA",
-        "block_explorer_url": "https://explorer.zetachain.com",
-    }
-
-    add_custom_network(driver, zetachain_network)
-    switch_to_network(driver, zetachain_network["name"])
-
-    input("Press Enter to close the browser...")
-
-
 if __name__ == "__main__":
     try:
-        main()
+        options = Options()
+        service = Service()
+
+        driver = setup_chrome_driver_for_metamask(
+            options=options,
+            service=service,
+            metamask_version=SupportedVersion.LATEST,
+            headless=False,
+        )
+
+        onboard_extension(driver)
+
+        private_keys = []  # * Add private keys here
+        addresses = []
+
+        for private_key in private_keys:
+            address = import_multichain_account(driver, private_key)
+            print(f"Importing address {address}...")
+            addresses.append(address)
+
+        print(f"Imported {len(addresses)} addresses")
+
+        zetachain_network = {
+            "name": "ZetaChain Mainnet",
+            "rpc_url": "https://zetachain-mainnet.public.blastapi.io/",
+            "chain_id": 7000,
+            "currency_symbol": "ZETA",
+            "block_explorer_url": "https://explorer.zetachain.com",
+        }
+
+        add_custom_network(driver, zetachain_network)
+
+        network = switch_to_network(driver, zetachain_network["name"])
+        print("Connected to network", network)
+
+        if network != zetachain_network["name"]:
+            driver.quit()
+
+        # ! Implement your logic here
+
+        driver.quit()
     except KeyboardInterrupt:
         quit()

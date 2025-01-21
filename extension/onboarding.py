@@ -6,8 +6,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-
-from extension.helpers import get_extension_home_url, run_script
+from extension.helpers import get_metamask_home_url, run_script
 
 from storage.extension import ExtensionStorage
 from credentials import SecureCredentialStorage
@@ -175,7 +174,7 @@ def onboarding_import_wallet(driver: webdriver, password: str):
 def onboard_extension(
     driver: webdriver, import_with_recovery_phrase: bool = False
 ) -> webdriver:
-    extension_url = get_extension_home_url()
+    home_url = get_metamask_home_url()
     original_window = driver.current_window_handle
     open_window_handles = driver.window_handles
 
@@ -202,9 +201,9 @@ def onboard_extension(
             onboarding_window = window_handle
 
     driver.switch_to.window(onboarding_window)  # ? switch to the onboarding tab
-    driver.get(extension_url)
+    driver.get(home_url)
 
-    wait.until(EC.url_contains(extension_url + "#onboarding"))
+    wait.until(EC.url_contains(home_url + "#onboarding"))
     wait.until(lambda driver: run_script(driver, "readyState.js"))
 
     print("Starting MetaMask onboarding...")
