@@ -27,7 +27,10 @@ def get_metamask_home_url() -> str:
 def open_dialog(locator: WebElement, trigger: WebElement) -> WebElement:
     wait = WebDriverWait(locator, timeout=DEFAULT_TIMEOUT)
 
-    trigger.click()
+    try:
+        trigger.click()
+    except Exception:
+        trigger.click()
 
     dialog_elem = wait.until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "[role='dialog']"))

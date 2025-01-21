@@ -62,6 +62,10 @@ def load_extension_from_file(version: str) -> str:
     Returns:
         str: Path to the installed extension.
     """
+    if not os.path.exists(EXTENSION_DIR):
+        # ? Create the extension directory if it doesn't exist
+        os.makedirs(EXTENSION_DIR, exist_ok=True)
+    
     # ? Path: extension/{VERSION}.crx
     installed_extension_path = os.path.abspath(
         os.path.join(EXTENSION_DIR, f"{version}.crx")

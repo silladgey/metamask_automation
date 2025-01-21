@@ -1,6 +1,13 @@
 import sys
-from selenium.webdriver.chrome.service import Service
+
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+
+from extension.onboarding import onboard_extension
+from extension.setup import setup_chrome_driver_for_metamask
+
+from storage.extension import ExtensionStorage
+from credentials import SecureCredentialStorage
 
 from utils.constants.menu_items import (
     CREATE_A_NEW_WALLET_MENU_ITEM,
@@ -14,11 +21,6 @@ from utils.constants.prompts import ENTER_CHOICE_INPUT_TEXT
 from utils.constants.strings import NOT_PASSWORD_CONFIRMED_TEXT
 from utils.enums.metamask_extension import SupportedVersion
 from utils.inputs import get_password, confirm_password
-
-from storage.extension import ExtensionStorage
-from credentials import SecureCredentialStorage
-from automate import onboard
-from setup import setup_chrome_driver_for_metamask
 
 
 def menu():
@@ -60,7 +62,7 @@ if __name__ == "__main__":
             metamask_version=SupportedVersion.LATEST,
             headless=False,
         )
-        onboard(driver)
+        onboard_extension(driver)
 
     elif choice == "2":
         pass
