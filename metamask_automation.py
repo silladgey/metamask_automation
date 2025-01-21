@@ -467,17 +467,17 @@ def disconnect_dapp_permission(driver: webdriver, site_url: str):
 
 
 if __name__ == "__main__":
+    options = Options()
+    service = Service()
+
+    driver = setup_chrome_driver_for_metamask(
+        options=options,
+        service=service,
+        metamask_version=SupportedVersion.LATEST,
+        headless=False,
+    )
+
     try:
-        options = Options()
-        service = Service()
-
-        driver = setup_chrome_driver_for_metamask(
-            options=options,
-            service=service,
-            metamask_version=SupportedVersion.LATEST,
-            headless=False,
-        )
-
         onboard_extension(driver)
 
         private_keys = []  # * Add private keys here
@@ -510,4 +510,5 @@ if __name__ == "__main__":
 
         driver.quit()
     except KeyboardInterrupt:
+        driver.quit()
         quit()
