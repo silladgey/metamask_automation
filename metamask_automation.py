@@ -377,22 +377,18 @@ def connect_account_to_dapp(driver: webdriver, connect_trigger: WebElement) -> b
         for _ in range(500):
             try:
                 if driver.find_element(By.CLASS_NAME, "permissions-connect"):
-
                     connect_page = driver.find_element(
                         By.XPATH, "//*[@data-testid='connect-page']"
                     )
 
                     action_prompt = connect_page.find_element(By.TAG_NAME, "h2")
-                    print(action_prompt.text)
+                    print(f"Action: {action_prompt.text}")
 
-                    metamask_connect_script = """
-                        const button = document.querySelector("button[data-testid='confirm-btn']");
-                        if (button) {
-                            button.click();
-                        }
-                        """
+                    connect_confirm_button = connect_page.find_element(
+                        By.XPATH, "//*[@data-testid='confirm-btn']"
+                    )
 
-                    driver.execute_script(metamask_connect_script)
+                    connect_confirm_button.click()
 
                     return True
             except Exception:
